@@ -29,7 +29,7 @@ public class WingsFileAccess : FileAccess
         ConfigService = configService;
         User = user;
 
-        if (server.Node == null)
+        if (server.Shard == null)
         {
             throw new ArgumentException("The wings file access server model needs to include the node data");
         }
@@ -38,7 +38,7 @@ public class WingsFileAccess : FileAccess
     public override async Task<FileData[]> Ls()
     {
         var res = await WingsApiHelper.Get<ListDirectory[]>(
-            Server.Node,
+            Server,
             $"api/servers/{Server.Uuid}/files/list-directory?directory={CurrentPath}"
         );
 
@@ -80,32 +80,32 @@ public class WingsFileAccess : FileAccess
 
     public override async Task<string> Read(FileData fileData)
     {
-        return await WingsApiHelper.GetRaw(Server.Node,
+        return await WingsApiHelper.GetRaw(Server,
             $"api/servers/{Server.Uuid}/files/contents?file={CurrentPath}{fileData.Name}");
     }
 
     public override async Task Write(FileData fileData, string content)
     {
-        await WingsApiHelper.PostRaw(Server.Node,
+        await WingsApiHelper.PostRaw(Server,
             $"api/servers/{Server.Uuid}/files/write?file={CurrentPath}{fileData.Name}", content);
     }
 
     public override async Task Upload(string name, Stream dataStream, Action<int>? progressUpdated = null)
     {
         var token = WingsJwtHelper.Generate(
-            Server.Node.Token,
+            Server.Shard.Token,
             claims => { claims.Add("server_uuid", Server.Uuid.ToString()); }
         );
 
         var client = new RestClient();
         var request = new RestRequest();
 
-        if (Server.Node.Ssl)
+        if (Server.Shard.Ssl)
             request.Resource =
-                $"https://{Server.Node.Fqdn}:{Server.Node.HttpPort}/upload/file?token={token}&directory={CurrentPath}";
+                $"https://{Server.Shard.Fqdn}:{Server.Shard.HttpPort}/upload/file?token={token}&directory={CurrentPath}";
         else
             request.Resource =
-                $"http://{Server.Node.Fqdn}:{Server.Node.HttpPort}/upload/file?token={token}&directory={CurrentPath}";
+                $"http://{Server.Shard.Fqdn}:{Server.Shard.HttpPort}/upload/file?token={token}&directory={CurrentPath}";
 
         request.AddParameter("name", "files");
         request.AddParameter("filename", name);
@@ -127,7 +127,7 @@ public class WingsFileAccess : FileAccess
 
     public override async Task MkDir(string name)
     {
-        await WingsApiHelper.Post(Server.Node, $"api/servers/{Server.Uuid}/files/create-directory",
+        await WingsApiHelper.Post(Server, $"api/servers/{Server.Uuid}/files/create-directory",
             new CreateDirectory()
             {
                 Name = name,
@@ -143,22 +143,22 @@ public class WingsFileAccess : FileAccess
 
     public override Task<string> DownloadUrl(FileData fileData)
     {
-        var token = WingsJwtHelper.Generate(Server.Node.Token, claims =>
+        var token = WingsJwtHelper.Generate(Server.Shard.Token, claims =>
         {
             claims.Add("server_uuid", Server.Uuid.ToString());
             claims.Add("file_path", CurrentPath + "/" + fileData.Name);
         });
 
-        if (Server.Node.Ssl)
+        if (Server.Shard.Ssl)
         {
             return Task.FromResult(
-                $"https://{Server.Node.Fqdn}:{Server.Node.HttpPort}/download/file?token={token}"
+                $"https://{Server.Shard.Fqdn}:{Server.Shard.HttpPort}/download/file?token={token}"
             );
         }
         else
         {
             return Task.FromResult(
-                $"http://{Server.Node.Fqdn}:{Server.Node.HttpPort}/download/file?token={token}"
+                $"http://{Server.Shard.Fqdn}:{Server.Shard.HttpPort}/download/file?token={token}"
             );
         }
     }
@@ -170,7 +170,7 @@ public class WingsFileAccess : FileAccess
 
     public override async Task Delete(FileData fileData)
     {
-        await WingsApiHelper.Post(Server.Node, $"api/servers/{Server.Uuid}/files/delete", new DeleteFiles()
+        await WingsApiHelper.Post(Server, $"api/servers/{Server.Uuid}/files/delete", new DeleteFiles()
         {
             Root = CurrentPath,
             Files = new()
@@ -195,7 +195,7 @@ public class WingsFileAccess : FileAccess
             }
         };
         
-        await WingsApiHelper.Put(Server.Node, $"api/servers/{Server.Uuid}/files/rename", req);
+        await WingsApiHelper.Put(Server, $"api/servers/{Server.Uuid}/files/rename", req);
     }
 
     public override async Task Compress(params FileData[] files)
@@ -206,7 +206,7 @@ public class WingsFileAccess : FileAccess
             Files = files.Select(x => x.Name).ToArray()
         };
 
-        await WingsApiHelper.Post(Server.Node, $"api/servers/{Server.Uuid}/files/compress", req);
+        await WingsApiHelper.Post(Server, $"api/servers/{Server.Uuid}/files/compress", req);
     }
 
     public override async Task Decompress(FileData fileData)
@@ -217,13 +217,13 @@ public class WingsFileAccess : FileAccess
             File = fileData.Name
         };
 
-        await WingsApiHelper.Post(Server.Node, $"api/servers/{Server.Uuid}/files/decompress", req);
+        await WingsApiHelper.Post(Server, $"api/servers/{Server.Uuid}/files/decompress", req);
     }
 
     public override Task<string> GetLaunchUrl()
     {
         return Task.FromResult(
-                    $"sftp://{User.Id}.{StringHelper.IntToStringWithLeadingZeros(Server.Id, 8)}@{Server.Node.Fqdn}:{Server.Node.SftpPort}");
+                    $"sftp://{User.Id}.{StringHelper.IntToStringWithLeadingZeros(Server.Id, 8)}@{Server.Shard.Fqdn}:{Server.Shard.SftpPort}");
     }
 
     public override object Clone()

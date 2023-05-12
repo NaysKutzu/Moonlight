@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MineStatLib;
 using Moonlight.App.ApiClients.Daemon.Resources;
+using Moonlight.App.ApiClients.Shards.Resources;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.Database.Entities;
 using Moonlight.App.Events;
@@ -70,23 +71,23 @@ public class CleanupService
             var maxUptime = config.GetValue<int>("Uptime");
             var minUptime = config.GetValue<int>("MinUptime");
 
-            var nodeRepository = scope.ServiceProvider.GetRequiredService<NodeRepository>();
-            var nodeService = scope.ServiceProvider.GetRequiredService<NodeService>();
+            var shardRepository = scope.ServiceProvider.GetRequiredService<Repository<Shard>>();
+            var shardService = scope.ServiceProvider.GetRequiredService<ShardService>();
 
-            var nodes = nodeRepository
+            var shards = shardRepository
                 .Get()
                 .ToArray();
 
-            foreach (var node in nodes)
+            foreach (var shard in shards)
             {
                 try
                 {
-                    var cpuStats = await nodeService.GetCpuStats(node);
-                    var memoryStats = await nodeService.GetMemoryStats(node);
+                    var cpuMetrics = await shardService.GetCpuMetrics(shard);
+                    var memoryMetrics = await shardService.GetMemoryMetrics(shard);
 
-                    if (cpuStats.Usage > maxCpu || memoryStats.Free < minMemory)
+                    if (cpuMetrics.CpuUsage > maxCpu || (memoryMetrics.Total - memoryMetrics.Used) < minMemory)
                     {
-                        var containerStats = await nodeService.GetContainerStats(node);
+                        var dockerMetrics = await shardService.GetDockerMetrics(shard);
 
                         var serverRepository = scope.ServiceProvider.GetRequiredService<ServerRepository>();
                         var imageRepository = scope.ServiceProvider.GetRequiredService<ImageRepository>();
@@ -101,9 +102,9 @@ public class CleanupService
                             )
                             .ToArray();
                         
-                        var containerMappedToServers = new Dictionary<ContainerStats.Container, Server>();
+                        var containerMappedToServers = new Dictionary<Container, Server>();
 
-                        foreach (var container in containerStats.Containers)
+                        foreach (var container in dockerMetrics.Containers)
                         {
                             if (Guid.TryParse(container.Name, out Guid uuid))
                             {
@@ -135,7 +136,7 @@ public class CleanupService
                                 {
                                     if (stats.Utilization.Uptime > TimeSpan.FromHours(maxUptime).TotalMilliseconds)
                                     {
-                                        var players = GetPlayers(node, server.MainAllocation);
+                                        var players = GetPlayers(shard, server.MainAllocation!);
 
                                         if (players == 0)
                                         {
@@ -155,7 +156,7 @@ public class CleanupService
                                 {
                                     if (stats.Utilization.Uptime > TimeSpan.FromMinutes(minUptime).TotalMilliseconds)
                                     {
-                                        var players = GetPlayers(node, server.MainAllocation);
+                                        var players = GetPlayers(shard, server.MainAllocation!);
 
                                         if (players < 1)
                                         {
@@ -192,7 +193,7 @@ public class CleanupService
                 }
                 catch (Exception e)
                 {
-                    Logger.Error($"Error performing cleanup on node {node.Name} ({node.Id})");
+                    Logger.Error($"Error performing cleanup on node {shard.Name} ({shard.Id})");
                     Logger.Error(e);
                 }
             }
@@ -203,9 +204,9 @@ public class CleanupService
         }
     }
 
-    private int GetPlayers(Node node, NodeAllocation allocation)
+    private int GetPlayers(Shard shard, ShardAllocation allocation)
     {
-        var ms = new MineStat(node.Fqdn, (ushort)allocation.Port);
+        var ms = new MineStat(shard.Fqdn, (ushort)allocation.Port);
         
         //TODO: Add fake player check
 

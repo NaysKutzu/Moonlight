@@ -8,7 +8,7 @@
 @using Moonlight.App.ApiClients.Daemon.Resources
 
 @inject NodeRepository NodeRepository
-@inject NodeService NodeService
+@*@inject NodeService NodeService*@
 
 <OnlyAdmin>
 <LazyLoader Load="Load">
@@ -304,6 +304,7 @@ else
 
         if (Node != null)
         {
+@*
             Task.Run(async () =>
             {
                 try
@@ -327,7 +328,7 @@ else
                 {
     // ignored
                 }
-            });
+            });*@
         }
     }
 

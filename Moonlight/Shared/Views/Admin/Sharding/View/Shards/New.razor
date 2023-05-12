@@ -1,0 +1,73 @@
+﻿@page "/admin/sharding/view/{Id:int}/shards/new"
+@using Moonlight.App.Repositories
+@using Moonlight.App.Database.Entities
+@using Microsoft.EntityFrameworkCore
+@using Moonlight.Shared.Components.Navigations
+@using Moonlight.App.Models.Forms
+@using Mappy.Net
+@using Moonlight.App.Helpers
+
+@inject Repository<ShardSpace> ShardSpaceRepository
+@inject NavigationManager NavigationManager
+
+<OnlyAdmin>
+    <LazyLoader Load="Load">
+        <AdminShardingNavigation Index="2" ShardSpace="ShardSpace"/>
+        @if (ShardSpace == null)
+        {
+            <div class="alert alert-danger">
+                <TL>No shard space with this id found</TL>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">
+                        <TL>Create new shard</TL>
+                    </span>
+                </div>
+                <div class="p-10">
+                    <SmartGeneratorForm Model="Model"
+                                        OnValidSubmit="Create">
+                    </SmartGeneratorForm>
+                </div>
+            </div>
+        }
+    </LazyLoader>
+</OnlyAdmin>
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private ShardSpace? ShardSpace;
+    private NewShardDataModel Model = new();
+
+    private Task Load(LazyLoader arg)
+    {
+        ShardSpace = ShardSpaceRepository
+            .Get()
+            .Include(x => x.Proxy)
+            .Include(x => x.Shards)
+            .FirstOrDefault(x => x.Id == Id);
+
+        return Task.CompletedTask;
+    }
+
+    private Task Create()
+    {
+        var m = Mapper.Map<Shard>(Model);
+
+        m.Token = StringHelper.GenerateString(65);
+        m.TokenId = StringHelper.GenerateString(17);
+        
+        ShardSpace!.Shards.Add(m);
+        ShardSpaceRepository.Update(ShardSpace);
+
+        NavigationManager.NavigateTo($"/admin/sharding/view/{ShardSpace.Id}/shards");
+
+        return Task.CompletedTask;
+    }
+}

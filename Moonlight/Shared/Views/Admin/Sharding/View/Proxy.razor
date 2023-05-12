@@ -1,0 +1,89 @@
+﻿@page "/admin/sharding/view/{Id:int}/proxy"
+@using Moonlight.App.Repositories
+@using Moonlight.App.Database.Entities
+@using Microsoft.EntityFrameworkCore
+@using Moonlight.App.Models.Forms
+@using Moonlight.Shared.Components.Navigations
+@using Mappy.Net
+
+@inject Repository<ShardSpace> ShardSpaceRepository
+
+<OnlyAdmin>
+    <LazyLoader Load="Load">
+        <AdminShardingNavigation Index="1" ShardSpace="ShardSpace"/>
+        @if (ShardSpace == null)
+        {
+            <div class="alert alert-danger">
+                <TL>No shard space with this id found</TL>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                @if (ShardSpace.Proxy == null)
+                {
+                    <div class="card-header">
+                        <span class="card-title">
+                            <TL>Create a new proxy</TL>
+                        </span>
+                    </div>
+                    <SmartGeneratorForm Model="Model"
+                                        OnValidSubmit="Create">
+                    </SmartGeneratorForm>
+                }
+                else
+                {
+                    <div class="card-header">
+                        <span class="card-title">@(ShardSpace.Proxy.Name)</span>
+                    </div>
+                    <SmartGeneratorForm Model="Model"
+                                        OnValidSubmit="Update">
+                    </SmartGeneratorForm>
+                }
+            </div>
+        }
+    </LazyLoader>
+</OnlyAdmin>
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private ShardSpace? ShardSpace;
+    private NewShardProxyDataModel Model = new();
+
+    private Task Load(LazyLoader arg)
+    {
+        ShardSpace = ShardSpaceRepository
+            .Get()
+            .Include(x => x.Proxy)
+            .Include(x => x.Shards)
+            .FirstOrDefault(x => x.Id == Id);
+
+        if (ShardSpace.Proxy != null)
+        {
+            Model = Mapper.Map<NewShardProxyDataModel>(ShardSpace.Proxy);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task Update()
+    {
+        ShardSpace!.Proxy = Mapper.Map(ShardSpace.Proxy, Model);
+        ShardSpaceRepository.Update(ShardSpace);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Create()
+    {
+        var proxy = Mapper.Map<ShardProxy>(Model);
+
+        ShardSpace!.Proxy = proxy;
+        ShardSpaceRepository.Update(ShardSpace);
+
+        await InvokeAsync(StateHasChanged);
+    }
+}

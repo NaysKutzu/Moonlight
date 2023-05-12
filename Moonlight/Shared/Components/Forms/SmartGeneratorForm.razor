@@ -1,0 +1,78 @@
+﻿@using System.Reflection
+@using Moonlight.App.Helpers
+@typeparam TModel
+
+<SmartForm Model="@Model" OnValidSubmit="OnSubmit">
+    <div class="card-body">
+        <div class="row row-cols-2">
+            @foreach (var property in typeof(TModel).GetProperties())
+            {
+                if (!property.CanWrite)
+                {
+                    continue;
+                }
+
+                <div class="col">
+                    <label class="form-label" for="@property.Name">
+                        <TL>@property.Name</TL>
+                    </label>
+
+                    <div class="input-group mb-5">
+                        @if (property.PropertyType == typeof(string))
+                        {
+                            var binder = new PropBinder(property, Model!);
+
+                            <InputText id="@property.Name" @bind-Value="binder.StringValue" class="form-control"/>
+                        }
+                        else if (property.PropertyType == typeof(int))
+                        {
+                            var binder = new PropBinder(property, Model!);
+
+                            <InputNumber id="@property.Name" @bind-Value="binder.IntValue" class="form-control"/>
+                        }
+                        else if (property.PropertyType == typeof(bool))
+                        {
+                            var binder = new PropBinder(property, Model!);
+
+                            <div class="form-check">
+                                <InputCheckbox id="@property.Name" @bind-Value="binder.BoolValue" class="form-check-input"/>
+                            </div>
+                        }
+                        else if (property.PropertyType == typeof(DateTime))
+                        {
+                            var binder = new PropBinder(property, Model!);
+
+                            <InputDate id="@property.Name" @bind-Value="binder.DateTimeValue" class="form-control"/>
+                        }
+                        else if (property.PropertyType == typeof(decimal))
+                        {
+                            var binder = new PropBinder(property, Model!);
+
+                            <InputNumber id="@property.Name" step="0.01" @bind-Value="binder.DoubleValue" class="form-control"/>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card-footer">
+        <div class="text-end">
+            <button class="btn btn-primary" type="submit">Save</button>
+        </div>
+    </div>
+</SmartForm>
+
+@code
+{
+    [Parameter]
+    public TModel Model { get; set; }
+
+    [Parameter]
+    public Func<Task> OnValidSubmit { get; set; }
+
+    private async Task OnSubmit()
+    {
+        await OnValidSubmit!.Invoke();
+    }
+}

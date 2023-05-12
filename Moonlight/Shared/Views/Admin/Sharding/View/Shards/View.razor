@@ -1,0 +1,338 @@
+﻿@page "/admin/sharding/view/{Id:int}/shards/view/{ShardId:int}"
+@using Moonlight.App.Database.Entities
+@using Moonlight.App.Repositories
+@using Microsoft.EntityFrameworkCore
+@using Moonlight.App.ApiClients.Shards.Resources
+@using Moonlight.App.Helpers
+@using Moonlight.App.Services
+@using Moonlight.Shared.Components.Navigations
+
+@inject Repository<ShardSpace> ShardSpaceRepository
+@inject Repository<Shard> ShardRepository
+@inject ShardService ShardService
+
+<OnlyAdmin>
+<LazyLoader Load="Load">
+@if (ShardSpace == null)
+{
+    <div class="alert alert-danger">
+        <TL>No shard space with this id found</TL>
+    </div>
+}
+else
+{
+    <AdminShardingNavigation ShardSpace="ShardSpace" Index="2" />
+    
+    if (Shard == null)
+    {
+        <div class="alert alert-danger">
+            <TL>No shard with this id found</TL>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <span class="fw-bold fs-3">
+                    @(Shard.Name) <TL>details</TL>
+                </span>
+            </h3>
+        </div>
+        <div class="card-body">
+        <div class="row g-3 g-lg-6">
+            <div class="col">
+                <div class="bg-gray-100 bg-opacity-70 rounded-2 px-6 py-5">
+                    <div class="symbol symbol-30px me-5 mb-8">
+                        <span class="symbol-label">
+                            <i class="text-primary bx bx-lg bx-chip"></i>
+                        </span>
+                    </div>
+                    <div class="m-0">
+                        <span class="fw-bolder d-block fs-2qx lh-1 ls-n1 mb-1">
+                            @if (CpuMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    @(CpuMetrics.CpuUsage)% <TL>of CPU Cores used</TL>
+                                </span>
+                            }
+                        </span>
+                        <span class="fw-semibold fs-6">
+                            @if (CpuMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>@(CpuMetrics.CpuModel)</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-gray-100 bg-opacity-70 rounded-2 px-6 py-5">
+                    <div class="symbol symbol-30px me-5 mb-8">
+                        <span class="symbol-label">
+                            <i class="text-primary bx bx-lg bx-microchip"></i>
+                        </span>
+                    </div>
+                    <div class="m-0">
+                        <span class="fw-bolder d-block fs-2qx lh-1 ls-n1 mb-1">
+                            @if (MemoryMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    @(Formatter.FormatSize(MemoryMetrics.Used)) <TL>of</TL> @(Formatter.FormatSize(MemoryMetrics.Total)) <TL>used</TL>
+                                </span>
+                            }
+                        </span>
+                        <span class="fw-semibold fs-6">
+                            @if (MemoryMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <TL>Memory usage</TL>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-gray-100 bg-opacity-70 rounded-2 px-6 py-5">
+                    <div class="symbol symbol-30px me-5 mb-8">
+                        <span class="symbol-label">
+                            <i class="text-primary bx bx-lg bx-microchip"></i>
+                        </span>
+                    </div>
+                    <div class="m-0">
+                        <span class="fw-bolder d-block fs-2qx lh-1 ls-n1 mb-1">
+                            @if (DiskMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    @(Formatter.FormatSize(DiskMetrics.Used)) <TL>of</TL> @(Formatter.FormatSize(DiskMetrics.Total)) <TL>used</TL>
+                                </span>
+                            }
+                        </span>
+                        <span class="fw-semibold fs-6">
+                            @if (DiskMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <TL>Disk usage</TL>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3 row g-3 g-lg-6">
+            <div class="col">
+                <div class="bg-gray-100 bg-opacity-70 rounded-2 px-6 py-5">
+                    <div class="symbol symbol-30px me-5 mb-8">
+                        <span class="symbol-label">
+                            <i class="text-primary bx bx-lg bx-purchase-tag"></i>
+                        </span>
+                    </div>
+                    <div class="m-0">
+                        <span class="fw-bolder d-block fs-2qx lh-1 ls-n1 mb-1">
+                            @if (SystemMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-success">
+                                    <TL>Online</TL>
+                                </span>
+                            }
+                        </span>
+                        <span class="fw-semibold fs-6">
+                            @if (SystemMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>@(SystemMetrics.OsName)</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-gray-100 bg-opacity-70 rounded-2 px-6 py-5">
+                    <div class="symbol symbol-30px me-5 mb-8">
+                        <span class="symbol-label">
+                            <i class="text-primary bx bx-lg bx-fingerprint"></i>
+                        </span>
+                    </div>
+                    <div class="m-0">
+                        <span class="fw-bolder d-block fs-2qx lh-1 ls-n1 mb-1">
+                            @if (SystemMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    @(Formatter.FormatUptime(SystemMetrics.Uptime))
+                                </span>
+                            }
+                        </span>
+                        <span class="fw-semibold fs-6">
+                            @if (SystemMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <TL>Uptime</TL>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="bg-gray-100 bg-opacity-70 rounded-2 px-6 py-5">
+                    <div class="symbol symbol-30px me-5 mb-8">
+                        <span class="symbol-label">
+                            <i class="text-primary bx bx-lg bxl-docker"></i>
+                        </span>
+                    </div>
+                    <div class="m-0">
+                        <span class="fw-bolder d-block fs-2qx lh-1 ls-n1 mb-1">
+                            @if (DockerMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    <TL>@(DockerMetrics.Containers.Length)</TL>
+                                </span>
+                            }
+                        </span>
+                        <span class="fw-semibold fs-6">
+                            @if (DockerMetrics == null)
+                            {
+                                <span class="text-muted">
+                                    <TL>Loading</TL>
+                                </span>
+                            }
+                            else
+                            {
+                                <TL>Docker containers running</TL>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        </div>
+    }
+}
+</LazyLoader>
+</OnlyAdmin>
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public int ShardId { get; set; }
+
+    private ShardSpace? ShardSpace;
+    private Shard? Shard;
+
+    private CpuMetrics? CpuMetrics;
+    private MemoryMetrics? MemoryMetrics;
+    private DiskMetrics? DiskMetrics;
+    private DockerMetrics? DockerMetrics;
+    private SystemMetrics? SystemMetrics;
+
+    private Task Load(LazyLoader arg)
+    {
+        ShardSpace = ShardSpaceRepository
+            .Get()
+            .Include(x => x.Proxy)
+            .Include(x => x.Shards)
+            .FirstOrDefault(x => x.Id == Id);
+
+        if (ShardSpace != null)
+        {
+            Shard = ShardRepository
+                .Get()
+                .FirstOrDefault(x => x.Id == ShardId);
+
+            if (Shard != null)
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        CpuMetrics = await ShardService.GetCpuMetrics(Shard);
+                        await InvokeAsync(StateHasChanged);
+
+                        MemoryMetrics = await ShardService.GetMemoryMetrics(Shard);
+                        await InvokeAsync(StateHasChanged);
+
+                        DiskMetrics = await ShardService.GetDiskMetrics(Shard);
+                        await InvokeAsync(StateHasChanged);
+
+                        SystemMetrics = await ShardService.GetSystemMetrics(Shard);
+                        await InvokeAsync(StateHasChanged);
+
+                        DockerMetrics = await ShardService.GetDockerMetrics(Shard);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    catch (Exception)
+                    {
+    // ignored
+                    }
+                });
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+}

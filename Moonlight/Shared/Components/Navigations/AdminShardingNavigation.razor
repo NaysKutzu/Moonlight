@@ -1,0 +1,31 @@
+﻿@using Moonlight.App.Database.Entities
+<div class="card mb-5 mb-xl-10">
+    <div class="card-body pt-0 pb-0">
+        <ul class="nav nav-stretch nav-line-tabs nav-line-tabs-2x border-transparent fs-5 fw-bold">
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary ms-0 me-10 py-5 @(Index == 0 ? "active" : "")" href="/admin/sharding/view/@(ShardSpace.Id)">
+                    <TL>Overview</TL>
+                </a>
+            </li>
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary ms-0 me-10 py-5 @(Index == 1 ? "active" : "")" href="/admin/sharding/view/@(ShardSpace.Id)/proxy">
+                    <TL>Proxy</TL>
+                </a>
+            </li>
+            <li class="nav-item mt-2">
+                <a class="nav-link text-active-primary ms-0 me-10 py-5 @(Index == 2 ? "active" : "")" href="/admin/sharding/view/@(ShardSpace.Id)/shards">
+                    <TL>Shards</TL>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+@code
+{
+    [Parameter]
+    public int Index { get; set; } = 0;
+    
+    [Parameter]
+    public ShardSpace ShardSpace { get; set; }
+}

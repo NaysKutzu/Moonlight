@@ -47,12 +47,12 @@ public class EmbedBuilderModule : BaseModule
         
         embed.AddField("Server Name", $"```{server.Id} - {server.Name}```", inline: true);
         embed.AddField("Owner", $"```{server.Owner.FirstName} {server.Owner.LastName}```", inline: true);
-        embed.AddField("Node", $"```{server.Node.Name}```", inline: true);
+        embed.AddField("Node", $"```{server.Shard.Name}```", inline: true);
         embed.AddField("Cpu", $"```{server.Cpu.ToString()}```", inline: true);
         embed.AddField("Ram", $"```{server.Memory.ToString()}```", inline: true);
         embed.AddField("Disk", $"```{server.Cpu.ToString()}```", inline: true);
         embed.AddField("\u200b", "\u200b");
-        embed.AddField("Address", $"```{server.Node.Fqdn}:{server.MainAllocation.Port.ToString()}```", inline: false);
+        embed.AddField("Address", $"```{server.Shard.Fqdn}:{server.MainAllocation.Port.ToString()}```", inline: false);
 
 
         return embed;

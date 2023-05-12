@@ -1,0 +1,79 @@
+﻿@page "/admin/sharding"
+@using Moonlight.App.Repositories
+@using Moonlight.App.Database.Entities
+@using BlazorTable
+@using Moonlight.App.Services
+
+@inject Repository<ShardSpace> ShardSpaceRepository
+@inject SmartTranslateService SmartTranslateService
+
+<OnlyAdmin>
+    <div class="card">
+        <div class="card-header border-0 pt-5">
+            <h3 class="card-title align-items-start flex-column">
+                <span class="card-label fw-bold fs-3 mb-1">
+                    <TL>Shard Spaces</TL>
+                </span>
+            </h3>
+            <div class="card-toolbar">
+                <a href="/admin/sharding/new" class="btn btn-sm btn-light-success">
+                    <i class="bx bx-layer-plus"></i>
+                    <TL>New shard space</TL>
+                </a>
+            </div>
+        </div>
+        <div class="card-body pt-0">
+            <LazyLoader @ref="LazyLoader" Load="Load">
+                @if (ShardSpaces.Any())
+                {
+                    <div class="table-responsive">
+                        <Table TableItem="ShardSpace" Items="ShardSpaces" PageSize="25" TableClass="table table-row-bordered table-row-gray-100 align-middle gs-0 gy-3" TableHeadClass="fw-bold text-muted">
+                            <Column TableItem="ShardSpace" Title="@(SmartTranslateService.Translate("Id"))" Field="@(x => x.Id)" Sortable="true" Filterable="true"/>
+                            <Column TableItem="ShardSpace" Title="@(SmartTranslateService.Translate("Name"))" Field="@(x => x.Name)" Sortable="true" Filterable="true">
+                                <Template>
+                                    <a href="/admin/sharding/view/@(context.Id)">@(context.Name)</a>
+                                </Template>
+                            </Column>
+                            <Column TableItem="ShardSpace" Title="" Field="@(x => x.Id)" Sortable="false" Filterable="false">
+                                <Template>
+                                    <DeleteButton Confirm="true"
+                                                  OnClick="() => Delete(context)">
+                                    </DeleteButton>
+                                </Template>
+                            </Column>
+                            <Pager ShowPageNumber="true" ShowTotalCount="true"/>
+                        </Table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <TL>No shard spaces found</TL>
+                    </div>
+                }
+            </LazyLoader>
+        </div>
+    </div>
+</OnlyAdmin>
+
+@code
+{
+    private ShardSpace[] ShardSpaces = Array.Empty<ShardSpace>();
+
+    private LazyLoader LazyLoader;
+    
+    private Task Load(LazyLoader arg)
+    {
+        ShardSpaces = ShardSpaceRepository
+            .Get()
+            .ToArray();
+        
+        return Task.CompletedTask;
+    }
+
+    private async Task Delete(ShardSpace shardSpace)
+    {
+        ShardSpaceRepository.Delete(shardSpace);
+        await LazyLoader.Reload();
+    }
+}

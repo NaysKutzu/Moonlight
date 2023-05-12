@@ -25,7 +25,7 @@ public class ServerListComponentHandlerModule : BaseModule
 
     private async Task ManagerButtonHandler(SocketMessageComponent component)
     {
-        var nodeService = Scope.ServiceProvider.GetRequiredService<NodeService>();
+        //var nodeService = Scope.ServiceProvider.GetRequiredService<NodeService>();
         var serverRepo = Scope.ServiceProvider.GetRequiredService<ServerRepository>();
         var dcs = Scope.ServiceProvider.GetRequiredService<DiscordBotService>();
         var costomId = component.Data.CustomId.Split(".");
@@ -38,7 +38,7 @@ public class ServerListComponentHandlerModule : BaseModule
         int id = int.Parse(costomId[2]);
         var server = serverRepo.Get()
             .Include(x => x.Owner)
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .Include(x => x.MainAllocation)
             .FirstOrDefault(x => x.Id == id);
         
@@ -54,14 +54,14 @@ public class ServerListComponentHandlerModule : BaseModule
             await component.RespondAsync(embed: embed.Build(), ephemeral: true);
             return;
         }
-
-        var data = await nodeService.GetStatus(server.Node);
+/*
+        var data = await nodeService.GetStatus(server.Shard);
 
         if (data == null)
         {
             await component.RespondAsync(embed: embed.Build(), ephemeral: true);
             return;
-        }
+        }*/
         var serverService = Scope.ServiceProvider.GetRequiredService<ServerService>();
         var serverDetails = await serverService.GetDetails(server);
         
@@ -218,7 +218,7 @@ public class ServerListComponentHandlerModule : BaseModule
     
     private async Task ModalHandler(SocketModal component)
     {
-        var nodeService = Scope.ServiceProvider.GetRequiredService<NodeService>();
+        //var nodeService = Scope.ServiceProvider.GetRequiredService<NodeService>();
         var serverRepo = Scope.ServiceProvider.GetRequiredService<ServerRepository>();
         var dcs = Scope.ServiceProvider.GetRequiredService<DiscordBotService>();
         var costomId = component.Data.CustomId.Split(".");
@@ -231,7 +231,7 @@ public class ServerListComponentHandlerModule : BaseModule
         int id = int.Parse(costomId[2]);
         var server = serverRepo.Get()
             .Include(x => x.Owner)
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .Include(x => x.MainAllocation)
             .FirstOrDefault(x => x.Id == id);
         
@@ -248,14 +248,14 @@ public class ServerListComponentHandlerModule : BaseModule
             await component.RespondAsync(embed: embed.Build(), ephemeral: true);
             return;
         }
-
-        var data = await nodeService.GetStatus(server.Node);
+/*
+        var data = await nodeService.GetStatus(server.Shard);
         if (data == null)
         {
             embed = dcs.EmbedBuilderModule.StandardEmbed("The node might be down. \n Please try again later.", Color.Red, component.User);
             await component.RespondAsync(embed: embed.Build(), ephemeral: true);
             return;
-        }
+        }*/
         
         var serverService = Scope.ServiceProvider.GetRequiredService<ServerService>();
         Logger.Info(server.Id + " - " + server.Name);
@@ -364,7 +364,7 @@ public class ServerListComponentHandlerModule : BaseModule
         var serverRepo = Scope.ServiceProvider.GetRequiredService<ServerRepository>();
         var server = serverRepo.Get()
             .Include(x => x.Owner)
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .Include(x => x.MainAllocation)
             .FirstOrDefault(x => x.Id == serverId);
 

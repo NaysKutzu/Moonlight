@@ -17,7 +17,7 @@
 @inject ServerService ServerService
 
 <LazyLoader Load="Load">
-    @if (DeployNode == null)
+    @if (DeployShard == null)
     {
         <div class="d-flex justify-content-center flex-center">
             <div class="card">
@@ -49,7 +49,7 @@
                         <div class="d-flex flex-column gap-10">
                             <div class="fv-row">
                                 <label class="form-label"><TL>Node</TL></label>
-                                <div class="fw-bold fs-3">@(DeployNode.Name)</div>
+                                <div class="fw-bold fs-3">@(DeployShard.Name)</div>
                             </div>
                             @if (Model.Image != null)
                             {
@@ -142,7 +142,7 @@
     [CascadingParameter]
     public User User { get; set; }
     
-    private Node? DeployNode;
+    private Shard? DeployShard;
     private Subscription? Subscription;
 
     private Dictionary<Image, SubscriptionLimit> Images = new();
@@ -159,7 +159,7 @@
         Subscription = await SubscriptionService.GetCurrent();
 
         await lazyLoader.SetText(SmartTranslateService.Translate("Searching for deploy node"));
-        DeployNode = await SmartDeployService.GetNode();
+        DeployShard = await SmartDeployService.GetShard();
 
         await lazyLoader.SetText(SmartTranslateService.Translate("Searching for available images"));
         var images = ImageRepository.Get().ToArray();
@@ -209,7 +209,7 @@
                         disk,
                         User,
                         Model.Image,
-                        DeployNode
+                        DeployShard
                         );
                     
                     NavigationManager.NavigateTo($"/server/{server.Uuid}");

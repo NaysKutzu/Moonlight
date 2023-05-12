@@ -45,6 +45,11 @@ public class DataContext : DbContext
     public DbSet<MySqlDatabase> Databases { get; set; }
     public DbSet<WebSpace> WebSpaces { get; set; }
     public DbSet<SupportChatMessage> SupportChatMessages { get; set; }
+    
+    public DbSet<Shard> Shards { get; set; }
+    public DbSet<ShardAllocation> ShardAllocations { get; set; }
+    public DbSet<ShardProxy> ShardProxies { get; set; }
+    public DbSet<ShardSpace> ShardSpaces { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

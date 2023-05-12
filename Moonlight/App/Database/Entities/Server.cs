@@ -16,9 +16,9 @@ public class Server
 
     public List<ServerVariable> Variables { get; set; } = new();
     public List<ServerBackup> Backups { get; set; } = new();
-    public List<NodeAllocation> Allocations { get; set; } = new();
-    public NodeAllocation? MainAllocation { get; set; } = null;
-    public Node Node { get; set; } = null!;
+    public List<ShardAllocation> Allocations { get; set; } = new();
+    public ShardAllocation? MainAllocation { get; set; } = null;
+    public Shard Shard { get; set; } = null!;
     public User Owner { get; set; } = null!;
     public bool IsCleanupException { get; set; } = false;
 }

@@ -5,6 +5,7 @@ using Logging.Net;
 using Moonlight.App.ApiClients.CloudPanel;
 using Moonlight.App.ApiClients.Daemon;
 using Moonlight.App.ApiClients.Paper;
+using Moonlight.App.ApiClients.Shards;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.Database;
 using Moonlight.App.Events;
@@ -96,7 +97,6 @@ namespace Moonlight
             builder.Services.AddScoped<UserService>();
             builder.Services.AddScoped<TotpService>();
             builder.Services.AddScoped<ToastService>();
-            builder.Services.AddScoped<NodeService>();
             builder.Services.AddScoped<ServerService>();
             builder.Services.AddSingleton<PaperService>();
             builder.Services.AddScoped<ClipboardService>();
@@ -117,6 +117,7 @@ namespace Moonlight
             builder.Services.AddScoped<FabricService>();
             builder.Services.AddSingleton<BucketService>();
             builder.Services.AddScoped<RatingService>();
+            builder.Services.AddScoped<ShardService>();
             
             builder.Services.AddScoped<GoogleOAuth2Service>();
             builder.Services.AddScoped<DiscordOAuth2Service>();
@@ -147,12 +148,14 @@ namespace Moonlight
             builder.Services.AddSingleton<HostSystemHelper>();
             builder.Services.AddScoped<DaemonApiHelper>();
             builder.Services.AddScoped<CloudPanelApiHelper>();
+            builder.Services.AddSingleton<ShardApiHelper>();
             
             // Background services
             builder.Services.AddSingleton<DiscordBotService>();
             builder.Services.AddSingleton<StatisticsCaptureService>();
             builder.Services.AddSingleton<DiscordNotificationService>();
             builder.Services.AddSingleton<CleanupService>();
+            builder.Services.AddSingleton<ShardServerService>();
 
             // Third party services
             builder.Services.AddBlazorTable();

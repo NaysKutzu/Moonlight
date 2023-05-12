@@ -10,7 +10,7 @@
 
 @inject NodeRepository NodeRepository
 @inject AlertService AlertService
-@inject NodeService NodeService
+@*@inject NodeService NodeService*@
 @inject SmartTranslateService SmartTranslateService
 
 <OnlyAdmin>
@@ -122,12 +122,13 @@
                 {
                     try
                     {
+                        /*
                         var ss = await NodeService.GetStatus(node);
 
                         lock (StatusCache)
                         {
                             StatusCache.Add(node, ss);
-                        }
+                        }*/
                     }
                     catch (Exception e)
                     {

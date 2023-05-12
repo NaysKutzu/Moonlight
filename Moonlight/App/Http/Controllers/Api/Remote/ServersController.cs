@@ -49,8 +49,8 @@ public class ServersController : Controller
 
         var servers = ServerRepository
             .Get()
-            .Include(x => x.Node)
-            .Where(x => x.Node.Id == node.Id)
+            .Include(x => x.Shard)
+            .Where(x => x.Shard.Id == node.Id)
             .ToArray();
 
         List<WingsServer> wingsServers = new();
@@ -102,8 +102,8 @@ public class ServersController : Controller
 
         foreach (var server in ServerRepository
                      .Get()
-                     .Include(x => x.Node)
-                     .Where(x => x.Node.Id == node.Id)
+                     .Include(x => x.Shard)
+                     .Where(x => x.Shard.Id == node.Id)
                      .ToArray()
                 )
         {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Moonlight.App.ApiClients.Shards;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.ApiClients.Wings.Requests;
 using Moonlight.App.ApiClients.Wings.Resources;
@@ -21,8 +22,6 @@ public class ServerService
     private readonly ServerRepository ServerRepository;
     private readonly UserRepository UserRepository;
     private readonly ImageRepository ImageRepository;
-    private readonly NodeRepository NodeRepository;
-    private readonly NodeAllocationRepository NodeAllocationRepository;
     private readonly WingsApiHelper WingsApiHelper;
     private readonly UserService UserService;
     private readonly ConfigService ConfigService;
@@ -30,74 +29,62 @@ public class ServerService
     private readonly SecurityLogService SecurityLogService;
     private readonly AuditLogService AuditLogService;
     private readonly ErrorLogService ErrorLogService;
-    private readonly NodeService NodeService;
+    private readonly ShardService ShardService;
     private readonly DateTimeService DateTimeService;
     private readonly EventSystem Event;
+    private readonly Repository<Shard> ShardRepository;
+    private readonly Repository<ShardAllocation> ShardAllocationRepository;
+    private readonly SmartDeployService SmartDeployService;
 
     public ServerService(
         ServerRepository serverRepository,
         WingsApiHelper wingsApiHelper,
         UserRepository userRepository,
         ImageRepository imageRepository,
-        NodeRepository nodeRepository,
         UserService userService,
         ConfigService configService,
         WingsJwtHelper wingsJwtHelper,
         SecurityLogService securityLogService,
         AuditLogService auditLogService,
         ErrorLogService errorLogService,
-        NodeService nodeService,
-        NodeAllocationRepository nodeAllocationRepository,
         DateTimeService dateTimeService,
-        EventSystem eventSystem)
+        EventSystem eventSystem,
+        ShardService shardService,
+        Repository<Shard> shardRepository,
+        Repository<ShardAllocation> shardAllocationRepository,
+        SmartDeployService smartDeployService)
     {
         ServerRepository = serverRepository;
         WingsApiHelper = wingsApiHelper;
         UserRepository = userRepository;
         ImageRepository = imageRepository;
-        NodeRepository = nodeRepository;
         UserService = userService;
         ConfigService = configService;
         WingsJwtHelper = wingsJwtHelper;
         SecurityLogService = securityLogService;
         AuditLogService = auditLogService;
         ErrorLogService = errorLogService;
-        NodeService = nodeService;
-        NodeAllocationRepository = nodeAllocationRepository;
         DateTimeService = dateTimeService;
         Event = eventSystem;
+        ShardService = shardService;
+        ShardRepository = shardRepository;
+        ShardAllocationRepository = shardAllocationRepository;
+        SmartDeployService = smartDeployService;
     }
 
-    private Server EnsureNodeData(Server s)
+    public async Task<ServerDetails> GetDetails(Server server)
     {
-        if (s.Node == null) // Ensure node data is available
-        {
-            return ServerRepository
-                .Get()
-                .Include(x => x.Node)
-                .First(x => x.Id == s.Id);
-        }
-        else
-            return s;
-    }
-
-    public async Task<ServerDetails> GetDetails(Server s)
-    {
-        Server server = EnsureNodeData(s);
-
-        return await WingsApiHelper.Get<ServerDetails>(
-            server.Node,
+        return await WingsApiHelper.GetSharded<ServerDetails>(
+            server,
             $"api/servers/{server.Uuid}"
         );
     }
 
-    public async Task SetPowerState(Server s, PowerSignal signal)
+    public async Task SetPowerState(Server server, PowerSignal signal)
     {
-        Server server = EnsureNodeData(s);
-
         var rawSignal = signal.ToString().ToLower();
 
-        await WingsApiHelper.Post(server.Node, $"api/servers/{server.Uuid}/power", new ServerPower()
+        await WingsApiHelper.PostSharded(server, $"api/servers/{server.Uuid}/power", new ServerPower()
         {
             Action = rawSignal
         });
@@ -113,7 +100,7 @@ public class ServerService
     {
         var serverData = ServerRepository // Ensure data
             .Get()
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .Include(x => x.Backups)
             .First(x => x.Id == server.Id);
 
@@ -128,7 +115,7 @@ public class ServerService
         serverData.Backups.Add(backup);
         ServerRepository.Update(serverData);
 
-        await WingsApiHelper.Post(serverData.Node, $"api/servers/{serverData.Uuid}/backup", new CreateBackup()
+        await WingsApiHelper.Post(serverData, $"api/servers/{serverData.Uuid}/backup", new CreateBackup()
         {
             Adapter = "wings",
             Uuid = backup.Uuid,
@@ -167,11 +154,9 @@ public class ServerService
         }
     }
 
-    public async Task RestoreBackup(Server s, ServerBackup serverBackup)
+    public async Task RestoreBackup(Server server, ServerBackup serverBackup)
     {
-        Server server = EnsureNodeData(s);
-
-        await WingsApiHelper.Post(server.Node, $"api/servers/{server.Uuid}/backup/{serverBackup.Uuid}/restore",
+        await WingsApiHelper.Post(server, $"api/servers/{server.Uuid}/backup/{serverBackup.Uuid}/restore",
             new RestoreBackup()
             {
                 Adapter = "wings"
@@ -189,13 +174,13 @@ public class ServerService
     {
         var serverData = ServerRepository
             .Get()
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .Include(x => x.Backups)
             .First(x => x.Id == server.Id);
 
         try
         {
-            await WingsApiHelper.Delete(serverData.Node, $"api/servers/{serverData.Uuid}/backup/{serverBackup.Uuid}",
+            await WingsApiHelper.Delete(serverData, $"api/servers/{serverData.Uuid}/backup/{serverBackup.Uuid}",
                 null);
         }
         catch (WingsException e)
@@ -224,11 +209,9 @@ public class ServerService
         );
     }
 
-    public async Task<string> DownloadBackup(Server s, ServerBackup serverBackup)
+    public async Task<string> DownloadBackup(Server server, ServerBackup serverBackup)
     {
-        Server server = EnsureNodeData(s);
-
-        var token = WingsJwtHelper.Generate(server.Node.Token, claims =>
+        var token = WingsJwtHelper.Generate(server.Shard.Token, claims =>
         {
             claims.Add("server_uuid", server.Uuid.ToString());
             claims.Add("backup_uuid", serverBackup.Uuid.ToString());
@@ -241,16 +224,14 @@ public class ServerService
                 x.Add<ServerBackup>(serverBackup.Uuid);
             });
 
-        if (server.Node.Ssl)
-            return $"https://{server.Node.Fqdn}:{server.Node.HttpPort}/download/backup?token={token}";
+        if (server.Shard.Ssl)
+            return $"https://{server.Shard.Fqdn}:{server.Shard.HttpPort}/download/backup?token={token}";
         else
-            return $"http://{server.Node.Fqdn}:{server.Node.HttpPort}/download/backup?token={token}";
+            return $"http://{server.Shard.Fqdn}:{server.Shard.HttpPort}/download/backup?token={token}";
     }
 
-    public Task<FileAccess> CreateFileAccess(Server s, User user) // We need the user to create the launch url
+    public Task<FileAccess> CreateFileAccess(Server server, User user) // We need the user to create the launch url
     {
-        Server server = EnsureNodeData(s);
-
         return Task.FromResult(
             (FileAccess)new WingsFileAccess(
                 WingsApiHelper,
@@ -262,7 +243,7 @@ public class ServerService
         );
     }
 
-    public async Task<Server> Create(string name, int cpu, long memory, long disk, User u, Image i, Node? n = null,
+    public async Task<Server> Create(string name, int cpu, long memory, long disk, User u, Image i, Shard? s = null,
         Action<Server>? modifyDetails = null)
     {
         var user = UserRepository
@@ -277,18 +258,18 @@ public class ServerService
 
         var allocations = image.Allocations;
 
-        Node node = n ?? NodeRepository.Get().First();
+        Shard shard = s ?? ShardRepository.Get().First();
 
-        NodeAllocation[] freeAllocations;
+        ShardAllocation[] freeAllocations;
 
         try
         {
             // We have sadly no choice to use entity framework to do what the sql call does, there
             // are only slower ways, so we will use a raw sql call as a exception
             
-            freeAllocations = NodeAllocationRepository
+            freeAllocations = ShardAllocationRepository
                 .Get()
-                .FromSqlRaw($"SELECT * FROM `NodeAllocations` WHERE ServerId IS NULL AND NodeId={node.Id} LIMIT {allocations}")
+                .FromSqlRaw($"SELECT * FROM `ShardAllocations` WHERE ServerId IS NULL AND ShardId={shard.Id} LIMIT {allocations}")
                 .ToArray();
         }
         catch (Exception)
@@ -310,7 +291,7 @@ public class ServerService
             Name = name,
             Image = image,
             Owner = user,
-            Node = node,
+            Shard = shard,
             Uuid = Guid.NewGuid(),
             MainAllocation = freeAllocations.First(),
             Allocations = freeAllocations.ToList(),
@@ -335,7 +316,7 @@ public class ServerService
 
         try
         {
-            await WingsApiHelper.Post(node, $"api/servers", new CreateServer()
+            await WingsApiHelper.Post(server, $"api/servers", new CreateServer()
             {
                 Uuid = newServerData.Uuid,
                 StartOnCompletion = false
@@ -350,7 +331,7 @@ public class ServerService
             await ErrorLogService.Log(e, x =>
             {
                 x.Add<Server>(newServerData.Uuid);
-                x.Add<Node>(node.Id);
+                x.Add<Shard>(shard.Id);
             });
 
             ServerRepository.Delete(newServerData); //TODO Remove unsinged table stuff
@@ -359,11 +340,9 @@ public class ServerService
         }
     }
 
-    public async Task Reinstall(Server s)
+    public async Task Reinstall(Server server)
     {
-        Server server = EnsureNodeData(s);
-
-        await WingsApiHelper.Post(server.Node, $"api/servers/{server.Uuid}/reinstall", null);
+        await WingsApiHelper.Post(server, $"api/servers/{server.Uuid}/reinstall", null);
 
         await AuditLogService.Log(AuditLogType.ReinstallServer, x => { x.Add<Server>(server.Uuid); });
     }
@@ -391,17 +370,15 @@ public class ServerService
         }
     }
 
-    public async Task Sync(Server s)
+    public async Task Sync(Server server)
     {
-        var server = EnsureNodeData(s);
-
-        await WingsApiHelper.Post(server.Node, $"api/servers/{server.Uuid}/sync", null);
+        await WingsApiHelper.Post(server, $"api/servers/{server.Uuid}/sync", null);
     }
 
     public async Task Delete(Server s)
     {
         throw new DisplayException("Deleting a server is currently a bit buggy. So its disabled for your safety");
-        
+        /*
         var server = EnsureNodeData(s);
 
         var backups = await GetBackups(server);
@@ -418,7 +395,7 @@ public class ServerService
             }
         }
 
-        await WingsApiHelper.Delete(server.Node, $"api/servers/{server.Uuid}", null);
+        await WingsApiHelper.Delete(server.Shard, $"api/servers/{server.Uuid}", null);
 
         //TODO: Fix empty data models
         
@@ -429,13 +406,11 @@ public class ServerService
 
         ServerRepository.Update(server);
 
-        ServerRepository.Delete(server);
+        ServerRepository.Delete(server);*/
     }
 
-    public async Task<bool> IsHostUp(Server s)
+    public async Task<bool> IsHostUp(Server server)
     {
-        var server = EnsureNodeData(s);
-
-        return await NodeService.IsHostUp(server.Node);
+        return await ShardService.IsHostUp(server.Shard);
     }
 }

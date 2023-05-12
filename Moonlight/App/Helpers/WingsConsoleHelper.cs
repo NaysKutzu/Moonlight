@@ -30,16 +30,16 @@ public class WingsConsoleHelper
     {
         var serverData = ServerRepository
             .Get()
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .First(x => x.Id == server.Id);
 
         var token = GenerateToken(serverData);
 
-        if (serverData.Node.Ssl)
+        if (serverData.Shard.Ssl)
         {
             await pteroConsole.Connect(
                 AppUrl,
-                $"wss://{serverData.Node.Fqdn}:{serverData.Node.HttpPort}/api/servers/{serverData.Uuid}/ws",
+                $"wss://{serverData.Shard.Fqdn}:{serverData.Shard.HttpPort}/api/servers/{serverData.Uuid}/ws",
                 token
             );
         }
@@ -47,7 +47,7 @@ public class WingsConsoleHelper
         {
             await pteroConsole.Connect(
                 AppUrl,
-                $"ws://{serverData.Node.Fqdn}:{serverData.Node.HttpPort}/api/servers/{serverData.Uuid}/ws",
+                $"ws://{serverData.Shard.Fqdn}:{serverData.Shard.HttpPort}/api/servers/{serverData.Uuid}/ws",
                 token
             );
         }
@@ -57,11 +57,11 @@ public class WingsConsoleHelper
     {
         var serverData = ServerRepository
             .Get()
-            .Include(x => x.Node)
+            .Include(x => x.Shard)
             .First(x => x.Id == server.Id);
 
         var userid = 1;
-        var secret = serverData.Node.Token;
+        var secret = serverData.Shard.Token;
         
 
         using (MD5 md5 = MD5.Create())
@@ -93,7 +93,7 @@ public class WingsConsoleHelper
                 .AddClaim("iss", AppUrl)
                 .AddClaim("aud", new[]
                 {
-                    serverData.Node.Ssl ? $"https://{serverData.Node.Fqdn}" : $"http://{serverData.Node.Fqdn}"
+                    serverData.Shard.Ssl ? $"https://{serverData.Shard.Fqdn}" : $"http://{serverData.Shard.Fqdn}"
                 })
                 .MustVerifySignature()
                 .Encode();

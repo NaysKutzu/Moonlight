@@ -1,0 +1,78 @@
+﻿@page "/admin/sharding/view/{Id:int}"
+@using Moonlight.App.Repositories
+@using Moonlight.App.Database.Entities
+@using Microsoft.EntityFrameworkCore
+@using Moonlight.Shared.Components.Navigations
+
+@inject Repository<ShardSpace> ShardSpaceRepository
+
+<OnlyAdmin>
+    <LazyLoader Load="Load">
+        <AdminShardingNavigation Index="0" ShardSpace="ShardSpace"/>
+        @if (ShardSpace == null)
+        {
+            <div class="alert alert-danger">
+                <TL>No shard space with this id found</TL>
+            </div>
+        }
+        else
+        {
+            <div class="mb-5">
+                <div class="card">
+                    @if (ShardSpace.Proxy == null)
+                    {
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <TL>No shard proxy found. A shard space need a proxy in order to work</TL>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card-header">
+                            <span class="card-title">@(ShardSpace.Proxy.Name)</span>
+                        </div>
+                        <div class="card-body fs-6 p-10">
+                            <div class="row">
+                                <label class="col-lg-4 fw-semibold text-muted">
+                                    <TL>Name</TL>
+                                </label>
+                                <div class="col-lg-8">
+                                    <span class="fw-bold fs-6 text-gray-800">@(ShardSpace.Proxy.Name)</span>
+                                </div>
+                            </div>
+                            <div class="separator my-4"></div>
+                            <div class="row">
+                                <label class="col-lg-4 fw-semibold text-muted">
+                                    FQDN
+                                </label>
+                                <div class="col-lg-8">
+                                    <span class="fw-bold fs-6 text-gray-800">@(ShardSpace.Proxy.Fqdn)</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </LazyLoader>
+</OnlyAdmin>
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    private ShardSpace? ShardSpace;
+
+    private Task Load(LazyLoader arg)
+    {
+        ShardSpace = ShardSpaceRepository
+            .Get()
+            .Include(x => x.Proxy)
+            .Include(x => x.Shards)
+            .FirstOrDefault(x => x.Id == Id);
+
+        return Task.CompletedTask;
+    }
+}
