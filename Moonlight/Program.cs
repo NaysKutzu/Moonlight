@@ -5,6 +5,7 @@ using Logging.Net;
 using Moonlight.App.ApiClients.CloudPanel;
 using Moonlight.App.ApiClients.Daemon;
 using Moonlight.App.ApiClients.Paper;
+using Moonlight.App.ApiClients.ShardProxies;
 using Moonlight.App.ApiClients.Shards;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.Database;
@@ -26,6 +27,7 @@ using Moonlight.App.Services.Minecraft;
 using Moonlight.App.Services.Notifications;
 using Moonlight.App.Services.OAuth2;
 using Moonlight.App.Services.Sessions;
+using Moonlight.App.Services.Shards;
 using Moonlight.App.Services.Statistics;
 using Moonlight.App.Services.SupportChat;
 
@@ -118,6 +120,7 @@ namespace Moonlight
             builder.Services.AddSingleton<BucketService>();
             builder.Services.AddScoped<RatingService>();
             builder.Services.AddScoped<ShardService>();
+            builder.Services.AddScoped<ShardProxyService>();
             
             builder.Services.AddScoped<GoogleOAuth2Service>();
             builder.Services.AddScoped<DiscordOAuth2Service>();
@@ -149,6 +152,7 @@ namespace Moonlight
             builder.Services.AddScoped<DaemonApiHelper>();
             builder.Services.AddScoped<CloudPanelApiHelper>();
             builder.Services.AddSingleton<ShardApiHelper>();
+            builder.Services.AddSingleton<ShardProxyApiHelper>();
             
             // Background services
             builder.Services.AddSingleton<DiscordBotService>();

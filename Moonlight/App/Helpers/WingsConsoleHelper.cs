@@ -4,69 +4,69 @@ using JWT.Algorithms;
 using JWT.Builder;
 using Microsoft.EntityFrameworkCore;
 using Moonlight.App.Database.Entities;
+using Moonlight.App.Helpers.Wings;
 using Moonlight.App.Repositories.Servers;
 using Moonlight.App.Services;
+using Moonlight.App.Services.Shards;
 
 namespace Moonlight.App.Helpers;
 
 public class WingsConsoleHelper
 {
     private readonly ServerRepository ServerRepository;
-    private readonly WingsJwtHelper WingsJwtHelper;
+    private readonly ShardService ShardService;
     private readonly string AppUrl;
 
     public WingsConsoleHelper(
         ServerRepository serverRepository,
         ConfigService configService,
-        WingsJwtHelper wingsJwtHelper)
+        ShardService shardService)
     {
         ServerRepository = serverRepository;
-        WingsJwtHelper = wingsJwtHelper;
+        ShardService = shardService;
 
         AppUrl = configService.GetSection("Moonlight").GetValue<string>("AppUrl");
     }
 
-    public async Task ConnectWings(PteroConsole.NET.PteroConsole pteroConsole, Server server)
+    public async Task ConnectWings(WingsConsole console, Server server)
     {
         var serverData = ServerRepository
             .Get()
             .Include(x => x.Shard)
             .First(x => x.Id == server.Id);
+        
+        var shard = await ShardService.GetCurrentShard(serverData);
+        var token = await GenerateToken(serverData);
 
-        var token = GenerateToken(serverData);
-
-        if (serverData.Shard.Ssl)
+        if (shard.Ssl)
         {
-            await pteroConsole.Connect(
+            await console.Connect(
                 AppUrl,
-                $"wss://{serverData.Shard.Fqdn}:{serverData.Shard.HttpPort}/api/servers/{serverData.Uuid}/ws",
+                $"wss://{shard.Fqdn}:{shard.HttpPort}/api/servers/{serverData.Uuid}/ws",
                 token
             );
         }
         else
         {
-            await pteroConsole.Connect(
+            await console.Connect(
                 AppUrl,
-                $"ws://{serverData.Shard.Fqdn}:{serverData.Shard.HttpPort}/api/servers/{serverData.Uuid}/ws",
+                $"ws://{shard.Fqdn}:{shard.HttpPort}/api/servers/{serverData.Uuid}/ws",
                 token
             );
         }
     }
 
-    public string GenerateToken(Server server)
+    public async Task<string> GenerateToken(Server server)
     {
-        var serverData = ServerRepository
-            .Get()
-            .Include(x => x.Shard)
-            .First(x => x.Id == server.Id);
-
+        var shard = await ShardService.GetCurrentShard(server);
+        
         var userid = 1;
-        var secret = serverData.Shard.Token;
+        var secret = shard.Token;
         
 
         using (MD5 md5 = MD5.Create())
         {
-            var inputBytes = Encoding.ASCII.GetBytes(userid + serverData.Uuid.ToString());
+            var inputBytes = Encoding.ASCII.GetBytes(userid + server.Uuid.ToString());
             var outputBytes = md5.ComputeHash(inputBytes);
 
             var identifier = Convert.ToHexString(outputBytes).ToLower();
@@ -77,7 +77,7 @@ public class WingsConsoleHelper
                 .WithAlgorithm(new HMACSHA256Algorithm())
                 .WithSecret(secret)
                 .AddClaim("user_id", userid)
-                .AddClaim("server_uuid", serverData.Uuid.ToString())
+                .AddClaim("server_uuid", server.Uuid.ToString())
                 .AddClaim("permissions", new[]
                 {
                     "*",
@@ -93,7 +93,7 @@ public class WingsConsoleHelper
                 .AddClaim("iss", AppUrl)
                 .AddClaim("aud", new[]
                 {
-                    serverData.Shard.Ssl ? $"https://{serverData.Shard.Fqdn}" : $"http://{serverData.Shard.Fqdn}"
+                    shard.Ssl ? $"https://{shard.Fqdn}" : $"http://{shard.Fqdn}"
                 })
                 .MustVerifySignature()
                 .Encode();

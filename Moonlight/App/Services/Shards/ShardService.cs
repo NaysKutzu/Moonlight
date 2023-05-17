@@ -1,26 +1,31 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Logging.Net;
+using Microsoft.EntityFrameworkCore;
 using Moonlight.App.ApiClients.Shards;
+using Moonlight.App.ApiClients.Shards.Requests;
 using Moonlight.App.ApiClients.Shards.Resources;
 using Moonlight.App.Database.Entities;
 using Moonlight.App.Repositories;
 using Moonlight.App.Services.Background;
 
-namespace Moonlight.App.Services;
+namespace Moonlight.App.Services.Shards;
 
 public class ShardService
 {
     private readonly Repository<Server> ServerRepository;
+    private readonly Repository<ShardSpace> ShardSpaceRepository;
     private readonly ShardServerService ShardServerService;
     private readonly ShardApiHelper ShardApiHelper;
 
     public ShardService(
         Repository<Server> serverRepository,
         ShardApiHelper shardApiHelper,
-        ShardServerService shardServerService)
+        ShardServerService shardServerService,
+        Repository<ShardSpace> shardSpaceRepository)
     {
         ServerRepository = serverRepository;
         ShardApiHelper = shardApiHelper;
         ShardServerService = shardServerService;
+        ShardSpaceRepository = shardSpaceRepository;
     }
 
     // Shard finding
@@ -52,7 +57,18 @@ public class ShardService
 
         return Task.FromResult(server.Shard);
     }
-    
+
+    public Task<ShardProxy> GetShardProxy(Server server)
+    {
+        var shardSpace = ShardSpaceRepository
+            .Get()
+            .Include(x => x.Shards)
+            .Include(x => x.Proxy)
+            .First(x => x.Shards.Any(y => y.Id == server.Shard.Id));
+
+        return Task.FromResult(shardSpace.Proxy!);
+    }
+
     // Reading shard (daemon) data
 
     public async Task<CpuMetrics> GetCpuMetrics(Shard shard)
@@ -80,11 +96,31 @@ public class ShardService
         return await ShardApiHelper.Get<DockerMetrics>(shard, "metrics/docker");
     }
 
+    public async Task Mount(Shard shard, string server, string serverPath, string path)
+    {
+        await ShardApiHelper.Post(shard, "mount", new Mount()
+        {
+            Server = server,
+            ServerPath = serverPath,
+            Path = path
+        });
+    }
+
+    public async Task Unmount(Shard shard, string path)
+    {
+        await ShardApiHelper.Delete(shard, "mount", new Unmount()
+        {
+            Path = path
+        });
+    }
+
     public async Task<bool> IsHostUp(Shard shard)
     {
         try
         {
             await GetSystemMetrics(shard);
+
+            return true;
         }
         catch (Exception)
         {

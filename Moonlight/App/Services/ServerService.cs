@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Logging.Net;
+using Microsoft.EntityFrameworkCore;
 using Moonlight.App.ApiClients.Shards;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.ApiClients.Wings.Requests;
@@ -13,6 +14,7 @@ using Moonlight.App.Models.Misc;
 using Moonlight.App.Repositories;
 using Moonlight.App.Repositories.Servers;
 using Moonlight.App.Services.LogServices;
+using Moonlight.App.Services.Shards;
 using FileAccess = Moonlight.App.Helpers.Files.FileAccess;
 
 namespace Moonlight.App.Services;
@@ -80,7 +82,7 @@ public class ServerService
         );
     }
 
-    public async Task SetPowerState(Server server, PowerSignal signal)
+    public async Task SetPowerState(Server server, PowerSignal signal) // DO NOT use this function to start or stop a server. Use the ShardServerService instead
     {
         var rawSignal = signal.ToString().ToLower();
 
@@ -297,7 +299,8 @@ public class ServerService
             Allocations = freeAllocations.ToList(),
             Backups = new(),
             OverrideStartup = "",
-            DockerImageIndex = image.DockerImages.FindIndex(x => x.Default)
+            DockerImageIndex = image.DockerImages.FindIndex(x => x.Default),
+            Installing = true
         };
 
         foreach (var imageVariable in image.Variables)
@@ -342,8 +345,12 @@ public class ServerService
 
     public async Task Reinstall(Server server)
     {
+        Logger.Debug("Installing: true");
+        
+        server.Installing = true;
+        
+        ServerRepository.Update(server);
         await WingsApiHelper.Post(server, $"api/servers/{server.Uuid}/reinstall", null);
-
         await AuditLogService.Log(AuditLogType.ReinstallServer, x => { x.Add<Server>(server.Uuid); });
     }
 
@@ -372,7 +379,22 @@ public class ServerService
 
     public async Task Sync(Server server)
     {
-        await WingsApiHelper.Post(server, $"api/servers/{server.Uuid}/sync", null);
+        await WingsApiHelper.PostSharded(server, $"api/servers/{server.Uuid}/sync", null);
+    }
+    
+    // This function emulates a server creation so
+    // wings can handle it even when the server was shared
+    // through a shard. Dont call while installing
+    public async Task SyncWings(Server server)
+    {
+        if (server.Installing)
+            throw new DisplayException("Unable to sync to sharded wings while installing");
+
+        await WingsApiHelper.PostSharded(server, $"api/servers", new CreateServer()
+        {
+            Uuid = server.Uuid,
+            StartOnCompletion = false
+        });
     }
 
     public async Task Delete(Server s)

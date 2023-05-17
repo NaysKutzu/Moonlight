@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moonlight.App.Database.Entities;
 using Moonlight.App.Events;
 using Moonlight.App.Helpers;
 using Moonlight.App.Http.Resources.Wings;
 using Moonlight.App.Repositories;
 using Moonlight.App.Repositories.Servers;
-using Moonlight.App.Services;
+using Logging.Net;
+using Moonlight.App.Services.Background;
 
 namespace Moonlight.App.Http.Controllers.Api.Remote;
 
@@ -14,20 +16,23 @@ namespace Moonlight.App.Http.Controllers.Api.Remote;
 public class ServersController : Controller
 {
     private readonly WingsServerConverter Converter;
+    private readonly ShardServerService ShardServerService;
     private readonly ServerRepository ServerRepository;
-    private readonly NodeRepository NodeRepository;
+    private readonly Repository<Shard> ShardRepository;
     private readonly EventSystem Event;
 
     public ServersController(
         WingsServerConverter converter,
         ServerRepository serverRepository,
-        NodeRepository nodeRepository,
-        EventSystem eventSystem)
+        EventSystem eventSystem,
+        Repository<Shard> shardRepository,
+        ShardServerService shardServerService)
     {
         Converter = converter;
         ServerRepository = serverRepository;
-        NodeRepository = nodeRepository;
         Event = eventSystem;
+        ShardRepository = shardRepository;
+        ShardServerService = shardServerService;
     }
 
     [HttpGet]
@@ -39,18 +44,18 @@ public class ServersController : Controller
         var id = tokenData.Split(".")[0];
         var token = tokenData.Split(".")[1];
 
-        var node = NodeRepository.Get().FirstOrDefault(x => x.TokenId == id);
+        var shard = ShardRepository.Get().FirstOrDefault(x => x.TokenId == id);
 
-        if (node == null)
+        if (shard == null)
             return NotFound();
 
-        if (token != node.Token)
+        if (token != shard.Token)
             return Unauthorized();
 
         var servers = ServerRepository
             .Get()
             .Include(x => x.Shard)
-            .Where(x => x.Shard.Id == node.Id)
+            .Where(x => x.Shard.Id == shard.Id)
             .ToArray();
 
         List<WingsServer> wingsServers = new();
@@ -69,9 +74,9 @@ public class ServersController : Controller
             totalPages = slice.Length - 1;
         }
 
-        await Event.Emit($"wings.{node.Id}.serverList", node);
+        await Event.Emit($"wings.{shard.Id}.serverList", shard);
 
-        //Logger.Debug($"[BRIDGE] Node '{node.Name}' is requesting server list page {page} with {perPage} items per page");
+        //Logger.Debug($"[BRIDGE] Shard '{shard.Name}' is requesting server list page {page} with {perPage} items per page");
 
         return PaginationResult<WingsServer>.CreatePagination(
             wingsServers.ToArray(),
@@ -84,26 +89,26 @@ public class ServersController : Controller
 
 
     [HttpPost("reset")]
-    public async Task<ActionResult> Reset()
+    public async Task<ActionResult> Reset() //TODO: Emulate fake creates with the servers running on this shard and are not located here, which can be found using the docker list thing
     {
         var tokenData = Request.Headers.Authorization.ToString().Replace("Bearer ", "");
         var id = tokenData.Split(".")[0];
         var token = tokenData.Split(".")[1];
 
-        var node = NodeRepository.Get().FirstOrDefault(x => x.TokenId == id);
+        var shard = ShardRepository.Get().FirstOrDefault(x => x.TokenId == id);
 
-        if (node == null)
+        if (shard == null)
             return NotFound();
 
-        if (token != node.Token)
+        if (token != shard.Token)
             return Unauthorized();
 
-        await Event.Emit($"wings.{node.Id}.stateReset", node);
+        await Event.Emit($"wings.{shard.Id}.stateReset", shard);
 
         foreach (var server in ServerRepository
                      .Get()
                      .Include(x => x.Shard)
-                     .Where(x => x.Shard.Id == node.Id)
+                     .Where(x => x.Shard.Id == shard.Id)
                      .ToArray()
                 )
         {
@@ -124,12 +129,12 @@ public class ServersController : Controller
         var id = tokenData.Split(".")[0];
         var token = tokenData.Split(".")[1];
 
-        var node = NodeRepository.Get().FirstOrDefault(x => x.TokenId == id);
+        var shard = ShardRepository.Get().FirstOrDefault(x => x.TokenId == id);
 
-        if (node == null)
+        if (shard == null)
             return NotFound();
 
-        if (token != node.Token)
+        if (token != shard.Token)
             return Unauthorized();
 
         var server = ServerRepository.Get().FirstOrDefault(x => x.Uuid == uuid);
@@ -137,7 +142,7 @@ public class ServersController : Controller
         if (server == null)
             return NotFound();
 
-        await Event.Emit($"wings.{node.Id}.serverFetch", server);
+        await Event.Emit($"wings.{shard.Id}.serverFetch", server);
 
         try //TODO: Remove
         {
@@ -157,12 +162,12 @@ public class ServersController : Controller
         var id = tokenData.Split(".")[0];
         var token = tokenData.Split(".")[1];
 
-        var node = NodeRepository.Get().FirstOrDefault(x => x.TokenId == id);
+        var shard = ShardRepository.Get().FirstOrDefault(x => x.TokenId == id);
 
-        if (node == null)
+        if (shard == null)
             return NotFound();
 
-        if (token != node.Token)
+        if (token != shard.Token)
             return Unauthorized();
 
         var server = ServerRepository.Get().Include(x => x.Image).FirstOrDefault(x => x.Uuid == uuid);
@@ -170,14 +175,28 @@ public class ServersController : Controller
         if (server == null)
             return NotFound();
 
-        await Event.Emit($"wings.{node.Id}.serverInstallFetch", server);
+        await Event.Emit($"wings.{shard.Id}.serverInstallFetch", server);
 
-        return new WingsServerInstall()
+        if (server.Installing)
         {
-            Entrypoint = server.Image.InstallEntrypoint,
-            Script = server.Image.InstallScript!,
-            Container_Image = server.Image.InstallDockerImage
-        };
+            Logger.Debug("Real install detected");
+            
+            return new WingsServerInstall()
+            {
+                Entrypoint = server.Image.InstallEntrypoint,
+                Script = server.Image.InstallScript!,
+                Container_Image = server.Image.InstallDockerImage
+            };   
+        }
+        else
+        {
+            return new WingsServerInstall()
+            {
+                Entrypoint = server.Image.InstallEntrypoint,
+                Script = "exit 0",
+                Container_Image = server.Image.InstallDockerImage
+            };
+        }
     }
 
     [HttpPost("{uuid}/install")]
@@ -187,12 +206,12 @@ public class ServersController : Controller
         var id = tokenData.Split(".")[0];
         var token = tokenData.Split(".")[1];
 
-        var node = NodeRepository.Get().FirstOrDefault(x => x.TokenId == id);
+        var shard = ShardRepository.Get().FirstOrDefault(x => x.TokenId == id);
 
-        if (node == null)
+        if (shard == null)
             return NotFound();
 
-        if (token != node.Token)
+        if (token != shard.Token)
             return Unauthorized();
 
         var server = ServerRepository.Get().Include(x => x.Image).FirstOrDefault(x => x.Uuid == uuid);
@@ -200,11 +219,21 @@ public class ServersController : Controller
         if (server == null)
             return NotFound();
 
-        server.Installing = false;
-        ServerRepository.Update(server);
+        await ShardServerService.UnlockServer(server);
+        
+        if (server.Installing)
+        {
+            server.Installing = false;
+            ServerRepository.Update(server);
 
-        await Event.Emit($"wings.{node.Id}.serverInstallComplete", server);
-        await Event.Emit($"server.{server.Uuid}.installComplete", server);
+            await Event.Emit($"wings.{shard.Id}.serverInstallComplete", server);
+            await Event.Emit($"server.{server.Uuid}.installComplete", server);
+        }
+        else // If the server was not installing but this endpoint was called,
+             // we know the shard server transfer was successful
+        {
+            await Event.Emit($"server.{server.Uuid}.reconnect");
+        }
 
         return Ok();
     }

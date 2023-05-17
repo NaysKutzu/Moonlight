@@ -1,0 +1,46 @@
+﻿@page "/test"
+@using Moonlight.App.Database.Entities
+@using Moonlight.App.Repositories
+@using Moonlight.App.Services.Background
+
+@inject Repository<App.Database.Entities.Server> ServerRepository
+@inject ShardServerService ShardServerService
+@inject Repository<Shard> ShardRepository
+
+<input type="number" class="form-control" @bind="Id"/>
+
+<WButton Text="Test"
+         WorkingText="Testing"
+         CssClasses="btn-primary"
+         OnClick="OnClick">
+</WButton>
+
+<WButton Text="Test 2"
+         WorkingText="Testing"
+         CssClasses="btn-primary"
+         OnClick="OnClick2">
+</WButton>
+
+@code
+{
+    [CascadingParameter]
+    public User User { get; set; }
+
+    private int Id = 21;
+    
+    private async Task OnClick()
+    {
+        var shard = ShardRepository.Get().First(x => x.Id == 3);
+        var server = ServerRepository.Get().First(x => x.Id == Id);
+
+        await ShardServerService.StartServer(server, shard);
+    }
+    
+    private async Task OnClick2()
+    {
+        var shard = ShardRepository.Get().First(x => x.Id == 4);
+        var server = ServerRepository.Get().First(x => x.Id == Id);
+
+        await ShardServerService.StartServer(server, shard);
+    }
+}

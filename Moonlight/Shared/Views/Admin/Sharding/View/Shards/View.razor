@@ -6,10 +6,14 @@
 @using Moonlight.App.Helpers
 @using Moonlight.App.Services
 @using Moonlight.Shared.Components.Navigations
+@using BlazorTable
+@using Moonlight.App.Services.Shards
 
 @inject Repository<ShardSpace> ShardSpaceRepository
 @inject Repository<Shard> ShardRepository
+@inject Repository<ShardAllocation> ShardAllocationRepository
 @inject ShardService ShardService
+@inject SmartTranslateService SmartTranslateService
 
 <OnlyAdmin>
 <LazyLoader Load="Load">
@@ -21,8 +25,8 @@
 }
 else
 {
-    <AdminShardingNavigation ShardSpace="ShardSpace" Index="2" />
-    
+    <AdminShardingNavigation ShardSpace="ShardSpace" Index="2"/>
+
     if (Shard == null)
     {
         <div class="alert alert-danger">
@@ -268,6 +272,40 @@ else
         </div>
         </div>
         </div>
+        <div class="mt-3 card">
+            <div class="card-header">
+                <span class="card-title">
+                    <TL>Allocations</TL>
+                </span>
+                <div class="card-toolbar">
+                    <div class="d-flex justify-content-end">
+                        <input @bind="SinglePort" type="number" placeholder="@(SmartTranslateService.Translate("Port"))" class="form-control me-2"/>
+                        <WButton Text="@(SmartTranslateService.Translate("Add"))"
+                                 WorkingText="@(SmartTranslateService.Translate("Adding"))"
+                                 CssClasses="btn-primary"
+                                 OnClick="AddSingeAllocation">
+                        </WButton>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <Table TableItem="ShardAllocation" Items="Shard.Allocations" PageSize="25" TableClass="table table-row-bordered table-row-gray-100 align-middle gs-0 gy-3" TableHeadClass="fw-bold text-muted">
+                        <Column TableItem="ShardAllocation" Title="@(SmartTranslateService.Translate("Port"))" Field="@(x => x.Port)" Sortable="true" Filterable="true"/>
+                        <Column TableItem="ShardAllocation" Title="" Field="@(x => x.Id)" Sortable="false" Filterable="false">
+                            <Template>
+                                <div class="text-end">
+                                    <DeleteButton Confirm="true"
+                                                  OnClick="() => Delete(context)">
+                                    </DeleteButton>
+                                </div>
+                            </Template>
+                        </Column>
+                        <Pager ShowPageNumber="true" ShowTotalCount="true"/>
+                    </Table>
+                </div>
+            </div>
+        </div>
     }
 }
 </LazyLoader>
@@ -284,11 +322,17 @@ else
     private ShardSpace? ShardSpace;
     private Shard? Shard;
 
+    // Metrics
+
     private CpuMetrics? CpuMetrics;
     private MemoryMetrics? MemoryMetrics;
     private DiskMetrics? DiskMetrics;
     private DockerMetrics? DockerMetrics;
     private SystemMetrics? SystemMetrics;
+
+    // Binds
+
+    private int SinglePort = 2000;
 
     private Task Load(LazyLoader arg)
     {
@@ -302,6 +346,7 @@ else
         {
             Shard = ShardRepository
                 .Get()
+                .Include(x => x.Allocations)
                 .FirstOrDefault(x => x.Id == ShardId);
 
             if (Shard != null)
@@ -334,5 +379,28 @@ else
         }
 
         return Task.CompletedTask;
+    }
+
+    private async Task AddSingeAllocation()
+    {
+        Shard!.Allocations.Add(new()
+        {
+            Port = SinglePort
+        });
+
+        ShardRepository.Update(Shard);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Delete(ShardAllocation context)
+    {
+        var allocation = Shard!.Allocations.First(x => x.Id == context.Id);
+        Shard.Allocations.RemoveAll(x => x.Id == context.Id);
+
+        ShardRepository.Update(Shard);
+        ShardAllocationRepository.Delete(allocation);
+
+        await InvokeAsync(StateHasChanged);
     }
 }

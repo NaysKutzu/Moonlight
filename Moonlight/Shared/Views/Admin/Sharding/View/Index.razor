@@ -2,9 +2,11 @@
 @using Moonlight.App.Repositories
 @using Moonlight.App.Database.Entities
 @using Microsoft.EntityFrameworkCore
+@using Moonlight.App.Services.Shards
 @using Moonlight.Shared.Components.Navigations
 
 @inject Repository<ShardSpace> ShardSpaceRepository
+@inject ShardProxyService ShardProxyService
 
 <OnlyAdmin>
     <LazyLoader Load="Load">
@@ -30,7 +32,16 @@
                     else
                     {
                         <div class="card-header">
-                            <span class="card-title">@(ShardSpace.Proxy.Name)</span>
+                            <span class="card-title">@(ShardSpace.Proxy.Name)
+                                @if (ProxyOnline)
+                                {
+                                    <span class="ms-3 text-success"><TL>Online</TL></span>
+                                }
+                                else
+                                {
+                                    <span class="ms-3 text-danger"><TL>Offline</TL></span>
+                                }
+                            </span>
                         </div>
                         <div class="card-body fs-6 p-10">
                             <div class="row">
@@ -64,8 +75,9 @@
     public int Id { get; set; }
 
     private ShardSpace? ShardSpace;
+    private bool ProxyOnline = false;
 
-    private Task Load(LazyLoader arg)
+    private async Task Load(LazyLoader arg)
     {
         ShardSpace = ShardSpaceRepository
             .Get()
@@ -73,6 +85,7 @@
             .Include(x => x.Shards)
             .FirstOrDefault(x => x.Id == Id);
 
-        return Task.CompletedTask;
+        if (ShardSpace != null && ShardSpace.Proxy != null)
+            ProxyOnline = await ShardProxyService.IsHostUp(ShardSpace.Proxy);
     }
 }

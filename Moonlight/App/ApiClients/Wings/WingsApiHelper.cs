@@ -2,6 +2,7 @@
 using Moonlight.App.Database.Entities;
 using Moonlight.App.Exceptions;
 using Moonlight.App.Services;
+using Moonlight.App.Services.Shards;
 using Newtonsoft.Json;
 using RestSharp;
 

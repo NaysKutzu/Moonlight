@@ -72,7 +72,8 @@
   <ItemGroup>
     <Folder Include="App\ApiClients\CloudPanel\Resources\" />
     <Folder Include="App\ApiClients\Daemon\Requests\" />
-    <Folder Include="App\ApiClients\Shards\Requests\" />
+    <Folder Include="App\ApiClients\ShardProxies\Requests\" />
+    <Folder Include="App\ApiClients\ShardProxies\Resources\" />
     <Folder Include="App\Http\Middleware" />
   </ItemGroup>
 

@@ -1,21 +1,20 @@
 ﻿using Moonlight.App.Database.Entities;
-using Newtonsoft.Json;
 using RestSharp;
 
-namespace Moonlight.App.ApiClients.Shards;
+namespace Moonlight.App.ApiClients.ShardProxies;
 
-public class ShardApiHelper
+public class ShardProxyApiHelper
 {
     private readonly RestClient Client;
 
-    public ShardApiHelper()
+    public ShardProxyApiHelper()
     {
         Client = new();
     }
     
-    public async Task<T> Get<T>(Shard shard, string resource)
+    public async Task Get(ShardProxy proxy, string resource)
     {
-        var request = await CreateRequest(shard, resource);
+        var request = await CreateRequest(proxy, resource);
 
         request.Method = Method.Get;
         
@@ -25,7 +24,7 @@ public class ShardApiHelper
         {
             if (response.StatusCode != 0)
             {
-                throw new ShardException(
+                throw new ShardProxyException(
                     $"An error occured: ({response.StatusCode}) {response.Content}",
                     (int)response.StatusCode
                 );
@@ -35,25 +34,21 @@ public class ShardApiHelper
                 throw new Exception($"An internal error occured: {response.ErrorMessage}");
             }
         }
-
-        return JsonConvert.DeserializeObject<T>(response.Content!)!;
     }
     
-    public async Task Post(Shard shard, string resource, object body)
+    public async Task Post(ShardProxy proxy, string resource)
     {
-        var request = await CreateRequest(shard, resource);
+        var request = await CreateRequest(proxy, resource);
 
         request.Method = Method.Post;
-
-        request.AddParameter("text/plain", JsonConvert.SerializeObject(body), ParameterType.RequestBody);
-
+        
         var response = await Client.ExecuteAsync(request);
 
         if (!response.IsSuccessful)
         {
             if (response.StatusCode != 0)
             {
-                throw new ShardException(
+                throw new ShardProxyException(
                     $"An error occured: ({response.StatusCode}) {response.Content}",
                     (int)response.StatusCode
                 );
@@ -65,21 +60,19 @@ public class ShardApiHelper
         }
     }
     
-    public async Task Delete(Shard shard, string resource, object body)
+    public async Task Delete(ShardProxy shard, string resource)
     {
         var request = await CreateRequest(shard, resource);
 
         request.Method = Method.Delete;
-
-        request.AddParameter("text/plain", JsonConvert.SerializeObject(body), ParameterType.RequestBody);
-
+        
         var response = await Client.ExecuteAsync(request);
 
         if (!response.IsSuccessful)
         {
             if (response.StatusCode != 0)
             {
-                throw new ShardException(
+                throw new ShardProxyException(
                     $"An error occured: ({response.StatusCode}) {response.Content}",
                     (int)response.StatusCode
                 );
@@ -91,15 +84,15 @@ public class ShardApiHelper
         }
     }
 
-    private Task<RestRequest> CreateRequest(Shard shard, string resource)
+    private Task<RestRequest> CreateRequest(ShardProxy proxy, string resource)
     {
-        var url = $"http://{shard.Fqdn}:{shard.ShardPort}/";
+        var url = $"http://{proxy.Fqdn}:9999/"; //TODO: Make port a variable
         
         RestRequest request = new(url + resource);
 
         request.AddHeader("Content-Type", "application/json");
         request.AddHeader("Accept", "application/json");
-        request.AddHeader("Authorization", shard.Token);
+        request.AddHeader("Authorization", proxy.Key);
         
         return Task.FromResult(request);
     }

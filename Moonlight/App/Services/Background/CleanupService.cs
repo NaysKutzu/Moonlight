@@ -8,6 +8,7 @@ using Moonlight.App.Database.Entities;
 using Moonlight.App.Events;
 using Moonlight.App.Repositories;
 using Moonlight.App.Repositories.Servers;
+using Moonlight.App.Services.Shards;
 using Newtonsoft.Json;
 
 namespace Moonlight.App.Services.Background;
