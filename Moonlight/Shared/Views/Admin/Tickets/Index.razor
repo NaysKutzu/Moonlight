@@ -1,0 +1,101 @@
+﻿@page "/admin/tickets"
+@using Moonlight.App.Database.Entities
+@using Moonlight.App.Events
+@using Moonlight.App.Services.SupportChat
+
+@inject SupportChatServerService ServerService
+@inject EventSystem Event
+
+@implements IDisposable
+
+<OnlyAdmin>
+    <LazyLoader @ref="LazyLoader" Load="Load">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex flex-column flex-xl-row p-5 pb-0">
+                    <div class="flex-lg-row-fluid me-xl-15 mb-20 mb-xl-0">
+                        <div class="mb-0">
+                            <h1 class="text-dark mb-6">
+                                <TL>Open chats</TL>
+                            </h1>
+                            <div class="separator"></div>
+                            <div class="mb-5">
+                                @if (OpenChats.Any())
+                                {
+                                    foreach (var chat in OpenChats)
+                                    {
+                                        <div class="d-flex mt-3 mb-3 ms-2 me-2">
+                                            <table>
+                                                <tr>
+                                                    <td rowspan="2">
+                                                        <span class="svg-icon svg-icon-2x me-5 ms-n1 svg-icon-success">
+                                                            <i class="text-primary bx bx-md bx-message-dots"></i>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <a href="/admin/support/view/@(chat.Key.Id)" class="text-dark text-hover-primary fs-4 me-3 fw-semibold">
+                                                            @(chat.Key.FirstName) @(chat.Key.LastName)
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        <span class="text-muted fw-semibold fs-6">
+                                                            @if (chat.Value == null)
+                                                            {
+                                                                <TL>No message sent yet</TL>
+                                                            }
+                                                            else
+                                                            {
+                                                                @(chat.Value.Content)
+                                                            }
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="separator"></div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="alert alert-info">
+                                        <TL>No support chat is currently open</TL>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </LazyLoader>
+</OnlyAdmin>
+
+@code
+{
+    private LazyLoader? LazyLoader;
+    private Dictionary<User, SupportChatMessage?> OpenChats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Event.On<User>("supportChat.new", this, async user =>
+        {
+            //TODO: Play sound or smth. Add a config option
+
+            OpenChats = await ServerService.GetOpenChats();
+
+            await InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task Load(LazyLoader arg) // Only for initial load
+    {
+        OpenChats = await ServerService.GetOpenChats();
+    }
+
+    public async void Dispose()
+    {
+        await Event.Off("supportChat.new", this);
+    }
+}

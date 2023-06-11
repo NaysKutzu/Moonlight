@@ -46,6 +46,11 @@ public class DataContext : DbContext
     public DbSet<WebSpace> WebSpaces { get; set; }
     public DbSet<SupportChatMessage> SupportChatMessages { get; set; }
     public DbSet<IpBan> IpBans { get; set; }
+    
+    public DbSet<SupportTicket> SupportTickets { get; set; }
+    public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
+    public DbSet<SupportTicketTag> SupportTicketTags { get; set; }
+    public DbSet<SupportTicketSnippet> SupportTicketSnippets { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

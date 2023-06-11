@@ -27,6 +27,7 @@ using Moonlight.App.Services.Notifications;
 using Moonlight.App.Services.Sessions;
 using Moonlight.App.Services.Statistics;
 using Moonlight.App.Services.SupportChat;
+using Moonlight.App.Services.Tickets;
 
 namespace Moonlight
 {
@@ -144,6 +145,9 @@ namespace Moonlight
             builder.Services.AddSingleton<SupportChatServerService>();
             builder.Services.AddScoped<SupportChatClientService>();
             builder.Services.AddScoped<SupportChatAdminService>();
+            
+            //Ticket System
+            builder.Services.AddSingleton<TicketServerService>();
 
             // Helpers
             builder.Services.AddSingleton<SmartTranslateHelper>();
