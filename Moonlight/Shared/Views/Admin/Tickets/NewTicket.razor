@@ -9,7 +9,6 @@
 @inject Repository<Server> ServerRepo;
 @inject Repository<Domain> DomainRepo;
 @inject Repository<WebSpace> WebSpaceRepo;
-@inject Repository<MySqlDatabase> DatabaseRepo;
 @inject SmartTranslateService SmartTranslateService
 
 <LazyLoader Load="Load">
@@ -91,19 +90,14 @@
                         
                         @switch (TicketType)
                         {
-                            case SupportTicketType.General:
-                                CanSummit = true;
-                            break;
-                                
                             case SupportTicketType.Server:
-                                CanSummit = false;
                                 <LazyLoader Load="LoadServer">
-                                    @if (UserServer != null)
+                                    @if (UserServer.Any())
                                     {
-                                        <select @bind="Server" class="form-select">
+                                        <select @bind="ServiceId" class="form-select input-group mb-5">
                                             @foreach (var server in UserServer)
                                             {
-                                                if (Server == server)
+                                                if (ServiceId == server.Id)
                                                 {
                                                     <option value="@(server.Id)" selected="">@(server.Name)</option>
                                                 }
@@ -112,15 +106,10 @@
                                                     <option value="@(server.Id)">@(server.Name)</option>
                                                 }
                                             }
-                                            @if (Server != null)
-                                            {
-                                                CanSummit = true;
-                                            }
                                         </select>
                                     }
                                     else
                                     {
-                                        CanSummit = false;
                                         <div class="card-body text-center">
                                             <h4 class="card-title">
                                                 <TL>You have no Servers</TL>
@@ -131,14 +120,13 @@
                                 break;
                                 
                             case SupportTicketType.Domain:
-                                CanSummit = false;
                                 <LazyLoader Load="LoadDomain">
-                                    @if (UserDomain != null)
+                                    @if (UserDomain.Any())
                                     {
-                                        <select @bind="Domain" class="form-select">
+                                        <select @bind="ServiceId" class="form-select input-group mb-5">
                                             @foreach (var domain in UserDomain)
                                             {
-                                                if (Domain == domain)
+                                                if (ServiceId == domain.Id)
                                                 {
                                                     <option value="@(domain.Id)" selected="">@(domain.Name)</option>
                                                 }
@@ -147,15 +135,10 @@
                                                     <option value="@(domain.Id)">@(domain.Name)</option>
                                                 }
                                             }
-                                            @if (Server != null)
-                                            {
-                                                CanSummit = true;
-                                            }
                                         </select>
                                     }
                                     else
                                     {
-                                        CanSummit = false;
                                         <div class="card-body text-center">
                                             <h4 class="card-title">
                                                 <TL>You have no Domain</TL>
@@ -166,14 +149,13 @@
                                 break;    
                                 
                             case SupportTicketType.WebSpace:
-                                CanSummit = false;
                                 <LazyLoader Load="LoadWebSpace">
-                                    @if (UserWebSpace != null)
+                                    @if (UserWebSpace.Any())
                                     {
-                                        <select @bind="WebSpace" class="form-select">
+                                        <select @bind="ServiceId" class="form-select input-group mb-5">
                                             @foreach (var webSpace in UserWebSpace)
                                             {
-                                                if (WebSpace == webSpace)
+                                                if (ServiceId == webSpace.Id)
                                                 {
                                                     <option value="@(webSpace.Id)" selected="">@(webSpace.Domain)</option>
                                                 }
@@ -182,15 +164,10 @@
                                                     <option value="@(webSpace.Id)">@(webSpace.Domain)</option>
                                                 }
                                             }
-                                            @if (WebSpace != null)
-                                            {
-                                                CanSummit = true;
-                                            }
                                         </select>
                                     }
                                     else
                                     {
-                                        CanSummit = false;
                                         <div class="card-body text-center">
                                             <h4 class="card-title">
                                                 <TL>You have no Webspace(s)</TL>
@@ -201,14 +178,13 @@
                                 break;
                                 
                             case SupportTicketType.Database:
-                                CanSummit = false;
                                 <LazyLoader Load="LoadWebSpace">
-                                    @if (UserWebSpace != null)
+                                    @if (UserWebSpace.Any())
                                     {
-                                        <select @bind="WebSpace" class="form-select">
+                                        <select @bind="ServiceId" class="form-select input-group mb-5">
                                             @foreach (var webSpace in UserWebSpace)
                                             {
-                                                if (WebSpace == webSpace)
+                                                if (ServiceId == webSpace.Id)
                                                 {
                                                     <option value="@(webSpace.Id)" selected="">@(webSpace.Domain)</option>
                                                 }
@@ -217,15 +193,10 @@
                                                     <option value="@(webSpace.Id)">@(webSpace.Domain)</option>
                                                 }
                                             }
-                                            @if (WebSpace != null)
-                                            {
-                                                CanSummit = true;
-                                            }
                                         </select>
                                     }
                                     else
                                     {
-                                        CanSummit = false;
                                         <div class="card-body text-center">
                                             <h4 class="card-title">
                                                 <TL>You have no Webspace(s)</TL>
@@ -240,45 +211,46 @@
                                 break;
                                 
                             case SupportTicketType.AdminInvoice:
-                            
-                                break;
-                                
-                            default:
-                                CanSummit = false;
+                                <LazyLoader Load="AdminInvoice">
+                                    <a href="https://youtu.be/dQw4w9WgXcQ?t=41" target="_top" rel="Apply as admin it's works 100%" class="input-group mb-5 btn btn-primary">
+                                        <TL>Apply as Admin</TL>
+                                    </a>
+
+                                </LazyLoader>
                                 break;
                         }
                         
-                        @if(TicketType is not SupportTicketType.None) {
-                            <label class="form-label">
-                                <TL>Support Message</TL>
-                            </label>
-                                
-                            <div class="d-flex flex-stack">
-                                <table class="w-100">
-                                    <tr>
-                                        <td class="align-top">
-                                            <SmartFileSelect @ref="SmartFileSelect"></SmartFileSelect>
-                                        </td>
-                                        <td class="w-100">
-                                            <textarea @bind="Content" @oninput="OnTyping" class="form-control mb-3 form-control-flush" rows="1" placeholder="@(SmartTranslateService.Translate("Describe your problem"))">            
-                                                                </textarea>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-
-                            <button type="submit" disabled="@(!CanSummit)" class="mt-5 float-end btn btn-primary">
+                        <label class="form-label">
+                            <TL>Support Message</TL>
+                        </label>
+                                                    
+                        <div class="d-flex flex-stack">
+                            <table class="w-100">
+                                <tr>
+                                    <td class="align-top">
+                                        <SmartFileSelect @ref="SmartFileSelect"></SmartFileSelect>
+                                    </td>
+                                    <td class="w-100">
+                                        <textarea @bind="Content" @oninput="OnTyping" class="form-control mb-3 form-control-flush" rows="1" placeholder="@(SmartTranslateService.Translate("Describe your problem"))">            
+                                                            </textarea>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>  
+                        
+                        @if (TicketType != SupportTicketType.General && ServiceId == 0 || TicketType == SupportTicketType.None)
+                        {
+                            <button type="submit" disabled="disabled" class="mt-5 float-end btn btn-primary">
                                 <TL>Create</TL>
                             </button>
                         }
                         else
                         {
-                            <div class="card-body text-center">
-                                <h4 class="card-title">
-                                    <TL>Please select a Category.</TL>
-                                </h4>
-                            </div>
+                            <button type="submit" class="mt-5 float-end btn btn-success">
+                                <TL>Create</TL>
+                            </button>
                         }
+                        
                     </div>
                 </div>
             </div>
@@ -292,7 +264,6 @@
     public User User { get; set; }
 
     private String Content;
-    private bool CanSummit = false;
     private DateTime LastTypingTimestamp = DateTime.UtcNow.AddMinutes(-10);
     private SmartFileSelect SmartFileSelect;
     private SupportTicketType TicketType;
@@ -303,7 +274,7 @@
         await lazyLoader.SetText(SmartTranslateService.Translate("Loading..."));
         TicketLimit = TicketServerService.CanOpenTicket(User);
     }
-    
+
     private async void OnTyping()
     {
         if ((DateTime.UtcNow - LastTypingTimestamp).TotalSeconds > 5)
@@ -313,11 +284,24 @@
         }
     }
 
+    //ServiceId Stuff
+    private int ServiceIdValue;
+    private int ServiceId
+    {
+        get { return ServiceIdValue; }
+        set
+        {
+            ServiceIdValue = value;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+    
     //Server Stuff
-    private Server? Server;
-    private List<Server>? UserServer;
+    private List<Server> UserServer = new();
     private async Task LoadServer(LazyLoader lazyLoader)
     {
+        ServiceId = 0;
+        UserServer = new List<Server>();
         await lazyLoader.SetText(SmartTranslateService.Translate("Loading your Server(s)"));
         var servers = ServerRepo.Get().Where(x => x.Owner == User);
         foreach (var server in servers)
@@ -328,10 +312,11 @@
     }
     
     //Domain Stuff
-    private Domain? Domain;
-    private List<Domain>? UserDomain;
+    private List<Domain> UserDomain = new();
     private async Task LoadDomain(LazyLoader lazyLoader)
     {
+        ServiceId = 0;
+        UserDomain = new List<Domain>();
         await lazyLoader.SetText(SmartTranslateService.Translate("Loading your Domain(s)"));
         var domains = DomainRepo.Get().Where(x => x.Owner == User);
         foreach (var domain in domains)
@@ -342,10 +327,11 @@
     }
     
     //WebSpace Stuff
-    private WebSpace? WebSpace;
-    private List<WebSpace>? UserWebSpace;
+    private List<WebSpace> UserWebSpace = new();
     private async Task LoadWebSpace(LazyLoader lazyLoader)
     {
+        ServiceId = 0;
+        UserWebSpace = new List<WebSpace>();
         await lazyLoader.SetText(SmartTranslateService.Translate("Loading your Webspace(s)"));
         var webSpaces = WebSpaceRepo.Get().Where(x => x.Owner == User);
         foreach (var webSpace in webSpaces)
@@ -353,5 +339,23 @@
             UserWebSpace.Add(webSpace);
         }
         
+    }
+    
+    //AdminInvoice Stuff
+    private async Task AdminInvoice(LazyLoader lazyLoader)
+    {
+        ServiceId = 0;
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 0%"));
+        await Task.Delay(TimeSpan.FromSeconds(2)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 34%"));
+        await Task.Delay(TimeSpan.FromSeconds(3)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 42%"));
+        await Task.Delay(TimeSpan.FromSeconds(4)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 69%"));
+        await Task.Delay(TimeSpan.FromSeconds(5)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 99,999%"));
+        await Task.Delay(TimeSpan.FromSeconds(6));
+        await lazyLoader.SetText(SmartTranslateService.Translate("( ͡° ͜ʖ ͡°)"));
+        await Task.Delay(TimeSpan.FromMilliseconds(300));
     }
 }
