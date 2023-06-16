@@ -39,7 +39,7 @@ public class RegisterController : Controller
                 Token = OneTimeJwtService.Generate((dict) =>
                 {
                     dict["clientId"] = id.ToString();
-                }, TimeSpan.FromDays(31))
+                }, TimeSpan.FromDays(365))
             };
         }
         catch (Exception)

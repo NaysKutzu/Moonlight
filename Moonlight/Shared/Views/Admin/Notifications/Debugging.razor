@@ -1,7 +1,9 @@
 ﻿@page "/admin/notifications/debugging"
 @using Moonlight.App.Services.Notifications
+@using Moonlight.App.Services.Interop
 
 @inject NotificationServerService NotificationServerService
+@inject AlertService AlertService
 
 <OnlyAdmin>
     <LazyLoader Load="Load">
@@ -11,7 +13,7 @@
             <hr/>
             <div>
                 <p>Id: @client.NotificationClient.Id User: @client.User.Email</p>
-                <button @onclick="async () => await SendSampleNotification(client)"></button>
+                <button class="btn btn-primary" @onclick="async () => await SendSampleNotification(client)">Sample Notification</button>
             </div>
         }
     </LazyLoader>
@@ -28,6 +30,7 @@
 
     private async Task SendSampleNotification(NotificationClientService client)
     {
-        await client.SendAction(@"{""action"": ""notify"",""notification"":{""id"":999,""channel"":""Sample Channel"",""content"":""This is a sample Notification"",""title"":""Sample Notification""}}");
+        await NotificationServerService.SendAction(client.User,@"{""action"": ""notify"",""notification"":{""id"":999,""channel"":""Sample Channel"",""content"":""This is a sample Notification"",""title"":""Sample Notification""}}");
+        await AlertService.Info("Sent");
     }
 }
