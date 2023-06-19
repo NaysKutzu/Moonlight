@@ -1,12 +1,15 @@
 using BlazorDownloadFile;
 using BlazorTable;
 using CurrieTechnologies.Razor.SweetAlert2;
+using HealthChecks.UI.Client;
 using Logging.Net;
 using Moonlight.App.ApiClients.CloudPanel;
 using Moonlight.App.ApiClients.Daemon;
+using Moonlight.App.ApiClients.Modrinth;
 using Moonlight.App.ApiClients.Paper;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.Database;
+using Moonlight.App.Diagnostics.HealthChecks;
 using Moonlight.App.Events;
 using Moonlight.App.Helpers;
 using Moonlight.App.Helpers.Wings;
@@ -16,6 +19,7 @@ using Moonlight.App.Repositories.Domains;
 using Moonlight.App.Repositories.LogEntries;
 using Moonlight.App.Repositories.Servers;
 using Moonlight.App.Services;
+using Moonlight.App.Services.Addon;
 using Moonlight.App.Services.Background;
 using Moonlight.App.Services.DiscordBot;
 using Moonlight.App.Services.Files;
@@ -33,9 +37,6 @@ namespace Moonlight
 {
     public class Program
     {
-        // App version. Change for release
-        public static readonly string AppVersion = $"InDev {Formatter.FormatDateOnly(DateTime.Now.Date)}";
-
         public static async Task Main(string[] args)
         {
             Logger.UsedLogger = new CacheLogger();
@@ -67,6 +68,10 @@ namespace Moonlight
                     options.HandshakeTimeout = TimeSpan.FromSeconds(10);
                 });
             builder.Services.AddHttpContextAccessor();
+            builder.Services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("Database")
+                .AddCheck<NodeHealthCheck>("Nodes")
+                .AddCheck<DaemonHealthCheck>("Daemons");
 
             // Databases
             builder.Services.AddDbContext<DataContext>();
@@ -114,7 +119,6 @@ namespace Moonlight
             builder.Services.AddScoped<OneTimeJwtService>();
             builder.Services.AddSingleton<NotificationServerService>();
             builder.Services.AddScoped<NotificationAdminService>();
-            builder.Services.AddScoped<NotificationClientService>();
             builder.Services.AddScoped<ModalService>();
             builder.Services.AddScoped<SmartDeployService>();
             builder.Services.AddScoped<WebSpaceService>();
@@ -129,6 +133,8 @@ namespace Moonlight
             builder.Services.AddScoped<ReCaptchaService>();
             builder.Services.AddScoped<IpBanService>();
             builder.Services.AddSingleton<OAuth2Service>();
+            builder.Services.AddScoped<DynamicBackgroundService>();
+            builder.Services.AddScoped<ServerAddonPluginService>();
 
             builder.Services.AddScoped<SubscriptionService>();
             builder.Services.AddScoped<SubscriptionAdminService>();
@@ -160,12 +166,16 @@ namespace Moonlight
             builder.Services.AddSingleton<HostSystemHelper>();
             builder.Services.AddScoped<DaemonApiHelper>();
             builder.Services.AddScoped<CloudPanelApiHelper>();
+            builder.Services.AddScoped<ModrinthApiHelper>();
 
             // Background services
             builder.Services.AddSingleton<DiscordBotService>();
             builder.Services.AddSingleton<StatisticsCaptureService>();
             builder.Services.AddSingleton<DiscordNotificationService>();
             builder.Services.AddSingleton<CleanupService>();
+            
+            // Other
+            builder.Services.AddSingleton<MoonlightService>();
 
             // Third party services
             builder.Services.AddBlazorTable();
@@ -191,12 +201,18 @@ namespace Moonlight
 
             app.MapBlazorHub();
             app.MapFallbackToPage("/_Host");
+            app.MapHealthChecks("/_health", new()
+            {
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
 
             // AutoStart services
             _ = app.Services.GetRequiredService<CleanupService>();
             _ = app.Services.GetRequiredService<DiscordBotService>();
             _ = app.Services.GetRequiredService<StatisticsCaptureService>();
             _ = app.Services.GetRequiredService<DiscordNotificationService>();
+            
+            _ = app.Services.GetRequiredService<MoonlightService>();
 
             // Discord bot service
             //var discordBotService = app.Services.GetRequiredService<DiscordBotService>();

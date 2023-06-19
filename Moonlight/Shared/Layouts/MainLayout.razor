@@ -20,26 +20,27 @@
 @inject ToastService ToastService
 @inject SmartTranslateService SmartTranslateService
 @inject IpBanService IpBanService
+@inject DynamicBackgroundService DynamicBackgroundService
 
-<GlobalErrorBoundary>
-    @{
-        var uri = new Uri(NavigationManager.Uri);
-        var pathParts = uri.LocalPath.Split("/").Reverse();
+@{
+    var uri = new Uri(NavigationManager.Uri);
+    var pathParts = uri.LocalPath.Split("/").Reverse();
 
-        var title = "";
+    var title = "";
 
-        foreach (var pathPart in pathParts)
+    foreach (var pathPart in pathParts)
+    {
+        if (!string.IsNullOrEmpty(pathPart))
         {
-            if (!string.IsNullOrEmpty(pathPart))
-            {
-                if (pathPart == pathParts.Last())
-                    title += $"{pathPart.FirstCharToUpper()} ";
-                else
-                    title += $"{pathPart.FirstCharToUpper()} - ";
-            }
+            if (pathPart == pathParts.Last())
+                title += $"{pathPart.FirstCharToUpper()} ";
+            else
+                title += $"{pathPart.FirstCharToUpper()} - ";
         }
     }
+}
 
+<GlobalErrorBoundary>
     <CascadingValue Value="User">
         <PageTitle>@(string.IsNullOrEmpty(title) ? "Dashboard - " : title)Moonlight</PageTitle>
 
@@ -56,7 +57,7 @@
                     <Sidebar></Sidebar>
                     <div class="app-main flex-column flex-row-fluid" id="kt_app_main">
                         <div class="d-flex flex-column flex-column-fluid">
-                            <div id="kt_app_content" class="app-content flex-column-fluid">
+                            <div id="kt_app_content" class="app-content flex-column-fluid" style="background-position: center; background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-image: url('@(DynamicBackgroundService.BackgroundImageUrl)')">
                                 <div id="kt_app_content_container" class="app-container container-fluid">
                                     <div class="mt-10">
                                         <SoftErrorBoundary>
@@ -189,11 +190,13 @@
         {
             try
             {
+                DynamicBackgroundService.OnBackgroundImageChanged += async (_, _) => { await InvokeAsync(StateHasChanged); };
+
                 IsIpBanned = await IpBanService.IsBanned();
-                
-                if(IsIpBanned)
+
+                if (IsIpBanned)
                     await InvokeAsync(StateHasChanged);
-                
+
                 await Event.On<Object>("ipBan.update", this, async _ =>
                 {
                     IsIpBanned = await IpBanService.IsBanned();
@@ -211,7 +214,13 @@
 
                 await SessionService.Register();
 
-                NavigationManager.LocationChanged += (sender, args) => { SessionService.Refresh(); };
+                NavigationManager.LocationChanged += async (_, _) =>
+                {
+                    SessionService.Refresh();
+
+                    if (!NavigationManager.Uri.Contains("/server/"))
+                        await DynamicBackgroundService.Reset();
+                };
 
                 if (User != null)
                 {

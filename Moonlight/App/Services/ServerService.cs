@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Logging.Net;
+using Microsoft.EntityFrameworkCore;
 using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.ApiClients.Wings.Requests;
 using Moonlight.App.ApiClients.Wings.Resources;
@@ -19,6 +20,7 @@ namespace Moonlight.App.Services;
 
 public class ServerService
 {
+    private readonly Repository<ServerVariable> ServerVariablesRepository;
     private readonly ServerRepository ServerRepository;
     private readonly UserRepository UserRepository;
     private readonly ImageRepository ImageRepository;
@@ -50,7 +52,8 @@ public class ServerService
         NodeService nodeService,
         NodeAllocationRepository nodeAllocationRepository,
         DateTimeService dateTimeService,
-        EventSystem eventSystem)
+        EventSystem eventSystem,
+        Repository<ServerVariable> serverVariablesRepository)
     {
         ServerRepository = serverRepository;
         WingsApiHelper = wingsApiHelper;
@@ -67,6 +70,7 @@ public class ServerService
         NodeAllocationRepository = nodeAllocationRepository;
         DateTimeService = dateTimeService;
         Event = eventSystem;
+        ServerVariablesRepository = serverVariablesRepository;
     }
 
     private Server EnsureNodeData(Server s)
@@ -366,6 +370,9 @@ public class ServerService
 
         await WingsApiHelper.Post(server.Node, $"api/servers/{server.Uuid}/reinstall", null);
 
+        server.Installing = true;
+        ServerRepository.Update(server);
+        
         await AuditLogService.Log(AuditLogType.ReinstallServer, x => { x.Add<Server>(server.Uuid); });
     }
 
@@ -401,17 +408,15 @@ public class ServerService
 
     public async Task Delete(Server s)
     {
-        throw new DisplayException("Deleting a server is currently a bit buggy. So its disabled for your safety");
+        throw new DisplayException("Deleting servers is currently disabled");
         
-        var server = EnsureNodeData(s);
-
-        var backups = await GetBackups(server);
+        var backups = await GetBackups(s);
 
         foreach (var backup in backups)
         {
             try
             {
-                await DeleteBackup(server, backup);
+                await DeleteBackup(s, backup);
             }
             catch (Exception)
             {
@@ -419,17 +424,25 @@ public class ServerService
             }
         }
 
+        var server = ServerRepository
+            .Get()
+            .Include(x => x.Variables)
+            .Include(x => x.Node)
+            .First(x => x.Id == s.Id);
+
         await WingsApiHelper.Delete(server.Node, $"api/servers/{server.Uuid}", null);
 
-        //TODO: Fix empty data models
-        
+        foreach (var variable in server.Variables.ToArray())
+        {
+            ServerVariablesRepository.Delete(variable);
+        }
+
         server.Allocations = new();
         server.MainAllocation = null;
         server.Variables = new();
         server.Backups = new();
 
         ServerRepository.Update(server);
-
         ServerRepository.Delete(server);
     }
 
@@ -438,5 +451,66 @@ public class ServerService
         var server = EnsureNodeData(s);
 
         return await NodeService.IsHostUp(server.Node);
+    }
+
+    public async Task ArchiveServer(Server server)
+    {
+        if (server.IsArchived)
+            throw new DisplayException("Unable to archive an already archived server");
+        
+        // Archive server
+        
+        var backup = await CreateBackup(server);
+        server.IsArchived = true;
+        server.Archive = backup;
+        
+        ServerRepository.Update(server);
+
+        await Event.WaitForEvent<ServerBackup>("wings.backups.create", this, x => backup.Id == x.Id);
+
+        // Reset server
+        
+        var access = await CreateFileAccess(server, null!);
+        var files = await access.Ls();
+        foreach (var file in files)
+        {
+            try
+            {
+                await access.Delete(file);
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
+        }
+        
+        await Event.Emit($"server.{server.Uuid}.archiveStatusChanged", server);
+    }
+
+    public async Task UnArchiveServer(Server s)
+    {
+        if (!s.IsArchived)
+            throw new DisplayException("Unable to unarchive a server which is not archived");
+
+        var server = ServerRepository
+            .Get()
+            .Include(x => x.Archive)
+            .First(x => x.Id == s.Id);
+
+        if (server.Archive == null)
+            throw new DisplayException("Archive from server not found");
+
+        if (!server.Archive.Created)
+            throw new DisplayException("Creating the server archive is in progress");
+
+        await RestoreBackup(server, server.Archive);
+
+        await Event.WaitForEvent<ServerBackup>("wings.backups.restore", this, 
+            x => x.Id == server.Archive.Id);
+
+        server.IsArchived = false;
+        ServerRepository.Update(server);
+
+        await Event.Emit($"server.{server.Uuid}.archiveStatusChanged", server);
     }
 }
