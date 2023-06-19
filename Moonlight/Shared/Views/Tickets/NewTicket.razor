@@ -1,0 +1,391 @@
+﻿@page "/tickets/new"
+@using Moonlight.App.Services
+@using Moonlight.App.Database.Entities
+@using Moonlight.App.Models.Misc
+@using Moonlight.App.Repositories
+@using Moonlight.App.Services.Tickets
+
+@inject TicketServerService TicketServerService
+@inject Repository<Server> ServerRepo
+@inject Repository<Domain> DomainRepo
+@inject Repository<WebSpace> WebSpaceRepo
+@inject SmartTranslateService SmartTranslateService
+@inject NavigationManager NavigationManager;
+
+<LazyLoader Load="Load">
+@if (!TicketLimit)
+{
+    <div class="d-flex justify-content-center flex-center">
+        <div class="card">
+            <img src="/assets/media/svg/nodata.svg" class="card-img-top w-25 mx-auto pt-5" alt="Not found image"/>
+            <div class="card-body text-center">
+                <h4 class="card-title">
+                    <TL>Limit Reached</TL>
+                </h4>
+                <p class="card-text">
+                    <TL>Exceeded maximum amount of Tickets</TL>
+                </p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column flex-lg-row">
+        <div class="w-100 flex-lg-row-auto w-lg-300px mb-7 me-7 me-lg-10">
+            <div class="card card-flush py-4">
+                <div class="card-header">
+                    <div class="card-title">
+                        <h2>
+                            <TL>Rules</TL>
+                        </h2>
+                    </div>
+                </div>
+                <div class="card-body pt-0">
+                    <div class="d-flex flex-column gap-10">
+                        <div class="fv-row">
+                            <label class="form-label">
+                                <TL>Rules</TL>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="d-flex flex-column flex-lg-row-fluid gap-7 gap-lg-10">
+            <div class="card card-flush py-4">
+                <div class="card-header">
+                    <div class="card-title">
+                        <h2>
+                            <TL>Your Ticket Information</TL>
+                        </h2>
+                    </div>
+                </div>
+                                
+                <div class="card-body pt-0">
+                    <div class="d-flex flex-column gap-10">
+                        <div class="fv-row">
+                            <label class="form-label">
+                                <TL>Ticket Reference</TL>
+                            </label>
+                                            
+                            <textarea @bind="Title" class="form-control mb-3 form-control-flush" rows="1" placeholder="@(SmartTranslateService.Translate("write a reference"))">            
+                                                                                                                                    </textarea>
+                        </div>
+                    </div>
+                </div>
+                                
+                <div class="card-body pt-0">
+                    <label class="form-label">
+                        <TL>Category</TL>
+                    </label>
+                
+                    <select @bind="TicketType" class="form-select input-group mb-5">
+                        @foreach (var status in (SupportTicketType[])Enum.GetValues(typeof(SupportTicketType)))
+                        {
+                            if (TicketType == status)
+                            {
+                                <option value="@(status)" selected=""><TL>@(status)</TL></option>
+                            }
+                            else
+                            {
+                                <option value="@(status)"><TL>@(status)</TL></option>
+                            }
+                        }
+                    </select>
+                
+                    @*
+                    None,
+                    General,
+                    Server,
+                    Domain,
+                    Webspace,
+                    Database,
+                    TechnicalError,
+                    AdminInvoice
+                    *@
+                
+                    @switch (TicketType)
+                    {
+                        case SupportTicketType.Server:
+                            <LazyLoader Load="LoadServer">
+                                @if (UserServer.Any())
+                                {
+                                    <select @bind="ServiceId" class="form-select input-group mb-5">
+                                        @foreach (var server in UserServer)
+                                        {
+                                            if (ServiceId == server.Id)
+                                            {
+                                                <option value="@(server.Id)" selected="">@(server.Name)</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@(server.Id)">@(server.Name)</option>
+                                            }
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">
+                                            <TL>You have no Servers</TL>
+                                        </h4>
+                                    </div>
+                                }
+                            </LazyLoader>
+                            break;
+                
+                        case SupportTicketType.Domain:
+                            <LazyLoader Load="LoadDomain">
+                                @if (UserDomain.Any())
+                                {
+                                    <select @bind="ServiceId" class="form-select input-group mb-5">
+                                        @foreach (var domain in UserDomain)
+                                        {
+                                            if (ServiceId == domain.Id)
+                                            {
+                                                <option value="@(domain.Id)" selected="">@(domain.Name)</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@(domain.Id)">@(domain.Name)</option>
+                                            }
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">
+                                            <TL>You have no Domain</TL>
+                                        </h4>
+                                    </div>
+                                }
+                            </LazyLoader>
+                            break;
+                
+                        case SupportTicketType.WebSpace:
+                            <LazyLoader Load="LoadWebSpace">
+                                @if (UserWebSpace.Any())
+                                {
+                                    <select @bind="ServiceId" class="form-select input-group mb-5">
+                                        @foreach (var webSpace in UserWebSpace)
+                                        {
+                                            if (ServiceId == webSpace.Id)
+                                            {
+                                                <option value="@(webSpace.Id)" selected="">@(webSpace.Domain)</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@(webSpace.Id)">@(webSpace.Domain)</option>
+                                            }
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">
+                                            <TL>You have no Webspace(s)</TL>
+                                        </h4>
+                                    </div>
+                                }
+                            </LazyLoader>
+                            break;
+                
+                        case SupportTicketType.Database:
+                            <LazyLoader Load="LoadWebSpace">
+                                @if (UserWebSpace.Any())
+                                {
+                                    <select @bind="ServiceId" class="form-select input-group mb-5">
+                                        @foreach (var webSpace in UserWebSpace)
+                                        {
+                                            if (ServiceId == webSpace.Id)
+                                            {
+                                                <option value="@(webSpace.Id)" selected="">@(webSpace.Domain)</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@(webSpace.Id)">@(webSpace.Domain)</option>
+                                            }
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">
+                                            <TL>You have no Webspace(s)</TL>
+                                        </h4>
+                                    </div>
+                                }
+                            </LazyLoader>
+                            break;
+                
+                        case SupportTicketType.AdminApplication:
+                            <LazyLoader Load="AdminInvoice">
+                                <a href="https://youtu.be/dQw4w9WgXcQ?t=41" target="_top" rel="Apply as admin it's works 100%" class="input-group mb-5 btn btn-primary">
+                                    <TL>Apply as Admin</TL>
+                                </a>
+                
+                            </LazyLoader>
+                            break;
+                    }
+                
+                    <label class="form-label">
+                        <TL>Support Message</TL>
+                    </label>
+                
+                    <div class="d-flex flex-stack">
+                        <table class="w-100">
+                            <tr>
+                                <td class="align-top">
+                                    <SmartFileSelect @ref="SmartFileSelect"></SmartFileSelect>
+                                </td>
+                                <td class="w-100">
+                                    <textarea @bind="Content" class="form-control mb-3 form-control-flush" rows="1" placeholder="@(SmartTranslateService.Translate("Describe your problem"))">            
+                                                                        </textarea>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                
+                    @if (TicketType != SupportTicketType.General && ServiceId == 0 || TicketType == SupportTicketType.None)
+                    {
+                        <button disabled="disabled" class="mt-5 float-end btn btn-primary">
+                            <TL>Create</TL>
+                        </button>
+                    }
+                    else
+                    {
+                        <WButton Text="@(SmartTranslateService.Translate("Create"))"
+                                 WorkingText="@(SmartTranslateService.Translate("Creating..."))"
+                                 CssClasses="mt-5 float-end btn btn-success"
+                                 OnClick="CreateTicket">
+                        </WButton>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+</LazyLoader>
+
+@code
+{
+[CascadingParameter]
+public User User { get; set; }
+
+private string Title;
+private string Content;
+private DateTime LastTypingTimestamp = DateTime.UtcNow.AddMinutes(-10);
+private SmartFileSelect SmartFileSelect;
+private SupportTicketType TicketType;
+private bool TicketLimit;
+
+private async Task Load(LazyLoader lazyLoader)
+{
+await lazyLoader.SetText(SmartTranslateService.Translate("Loading..."));
+TicketLimit = TicketServerService.CanOpenTicket(User);
+}
+private async void OnTyping()
+{
+if ((DateTime.UtcNow - LastTypingTimestamp).TotalSeconds > 5)
+        {
+            LastTypingTimestamp = DateTime.UtcNow;
+            //TODO: await ClientService.SendTyping();
+        }
+    }
+
+    private async Task CreateTicket()
+    {
+        if (TicketServerService.CanOpenTicket(User))
+        {
+            var ticket = await TicketServerService.CreateNewTicket(User, Title, ServiceId, TicketType, SupportTicketPriority.Normal);
+
+            if (ticket == null)
+                return;
+
+            await TicketServerService.CreateTicketMessage(User, Content, ticket, SmartFileSelect.SelectedFile);
+            
+            NavigationManager.NavigateTo($"/ticket/view/{ticket.Id}");
+        }
+    }
+
+    //ServiceId Stuff
+    private int ServiceIdValue;
+    private int ServiceId
+    {
+        get => ServiceIdValue;
+        set
+        {
+            ServiceIdValue = value;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+    
+    //Server Stuff
+    private List<Server> UserServer = new();
+    private async Task LoadServer(LazyLoader lazyLoader)
+    {
+        ServiceId = 0;
+        UserServer = new List<Server>();
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading your Server(s)"));
+        var servers = ServerRepo.Get().Where(x => x.Owner == User);
+        foreach (var server in servers)
+        {
+            UserServer.Add(server);
+        }
+        
+    }
+    
+    //Domain Stuff
+    private List<Domain> UserDomain = new();
+    private async Task LoadDomain(LazyLoader lazyLoader)
+    {
+        ServiceId = 0;
+        UserDomain = new List<Domain>();
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading your Domain(s)"));
+        var domains = DomainRepo.Get().Where(x => x.Owner == User);
+        foreach (var domain in domains)
+        {
+            UserDomain.Add(domain);
+        }
+        
+    }
+    
+    //WebSpace Stuff
+    private List<WebSpace> UserWebSpace = new();
+    private async Task LoadWebSpace(LazyLoader lazyLoader)
+    {
+        ServiceId = 0;
+        UserWebSpace = new List<WebSpace>();
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading your Webspace(s)"));
+        var webSpaces = WebSpaceRepo.Get().Where(x => x.Owner == User);
+        foreach (var webSpace in webSpaces)
+        {
+            UserWebSpace.Add(webSpace);
+        }
+        
+    }
+    
+    //AdminInvoice Stuff
+    private async Task AdminInvoice(LazyLoader lazyLoader)
+    {
+        ServiceId = 0;
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 0%"));
+        await Task.Delay(TimeSpan.FromSeconds(2)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 34%"));
+        await Task.Delay(TimeSpan.FromSeconds(3)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 42%"));
+        await Task.Delay(TimeSpan.FromSeconds(4)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 69%"));
+        await Task.Delay(TimeSpan.FromSeconds(5)); 
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading 99,999%"));
+        await Task.Delay(TimeSpan.FromSeconds(6));
+        await lazyLoader.SetText(SmartTranslateService.Translate("( ͡° ͜ʖ ͡°)"));
+        await Task.Delay(TimeSpan.FromMilliseconds(300));
+    }
+}

@@ -12,6 +12,7 @@ public class SupportTicket
     public SupportTicketPriority Priority { get; set; } = SupportTicketPriority.Normal;
     public List<SupportTicketTag> Tags { get; set; } = new();
     public List<SupportTicketMessage> Messages { get; set; } = new();
+    public int ServiceId { get; set; } = -1;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

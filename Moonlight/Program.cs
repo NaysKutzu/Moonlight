@@ -148,6 +148,7 @@ namespace Moonlight
             
             //Ticket System
             builder.Services.AddSingleton<TicketServerService>();
+            builder.Services.AddScoped<TicketClientService>();
 
             // Helpers
             builder.Services.AddSingleton<SmartTranslateHelper>();

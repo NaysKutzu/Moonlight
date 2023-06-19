@@ -8,6 +8,5 @@ public enum SupportTicketType
     Domain,
     WebSpace,
     Database,
-    TechnicalError,
-    AdminInvoice
+    AdminApplication
 }

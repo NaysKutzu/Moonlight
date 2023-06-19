@@ -11,7 +11,7 @@ using Moonlight.App.Database;
 namespace Moonlight.App.Database.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20230611164936_TicketSystem")]
+    [Migration("20230615201529_TicketSystem")]
     partial class TicketSystem
     {
         /// <inheritdoc />
@@ -731,6 +731,9 @@ namespace Moonlight.App.Database.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -756,6 +759,10 @@ namespace Moonlight.App.Database.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    b.Property<string>("Attachment")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
