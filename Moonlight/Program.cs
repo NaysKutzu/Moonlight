@@ -1,22 +1,33 @@
 using BlazorDownloadFile;
 using BlazorTable;
 using CurrieTechnologies.Razor.SweetAlert2;
+using HealthChecks.UI.Client;
 using Logging.Net;
 using Moonlight.App.ApiClients.CloudPanel;
+using Moonlight.App.ApiClients.Daemon;
+using Moonlight.App.ApiClients.Modrinth;
+using Moonlight.App.ApiClients.Paper;
+using Moonlight.App.ApiClients.Wings;
 using Moonlight.App.Database;
+using Moonlight.App.Diagnostics.HealthChecks;
 using Moonlight.App.Events;
 using Moonlight.App.Helpers;
+using Moonlight.App.Helpers.Wings;
 using Moonlight.App.LogMigrator;
 using Moonlight.App.Repositories;
 using Moonlight.App.Repositories.Domains;
 using Moonlight.App.Repositories.LogEntries;
 using Moonlight.App.Repositories.Servers;
 using Moonlight.App.Services;
+using Moonlight.App.Services.Addon;
+using Moonlight.App.Services.Background;
 using Moonlight.App.Services.DiscordBot;
+using Moonlight.App.Services.Files;
 using Moonlight.App.Services.Interop;
 using Moonlight.App.Services.LogServices;
+using Moonlight.App.Services.Mail;
+using Moonlight.App.Services.Minecraft;
 using Moonlight.App.Services.Notifications;
-using Moonlight.App.Services.OAuth2;
 using Moonlight.App.Services.Sessions;
 using Moonlight.App.Services.Statistics;
 using Moonlight.App.Services.SupportChat;
@@ -25,17 +36,22 @@ namespace Moonlight
 {
     public class Program
     {
-        // App version. Change for release
-        public static readonly string AppVersion = $"InDev {Formatter.FormatDateOnly(DateTime.Now.Date)}";
-        
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             Logger.UsedLogger = new CacheLogger();
-            
+
             Logger.Info($"Working dir: {Directory.GetCurrentDirectory()}");
 
-            var builder = WebApplication.CreateBuilder(args);
+            Logger.Info("Running pre-init tasks");
             
+            // This will also copy all default config files
+            var configService = new ConfigService(new StorageService());
+            var databaseCheckupService = new DatabaseCheckupService(configService);
+                
+            await databaseCheckupService.Perform();
+            
+            var builder = WebApplication.CreateBuilder(args);
+
             // Switch to logging.net injection
             // TODO: Enable in production
             //builder.Logging.ClearProviders();
@@ -51,10 +67,14 @@ namespace Moonlight
                     options.HandshakeTimeout = TimeSpan.FromSeconds(10);
                 });
             builder.Services.AddHttpContextAccessor();
-            
+            builder.Services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("Database")
+                .AddCheck<NodeHealthCheck>("Nodes")
+                .AddCheck<DaemonHealthCheck>("Daemons");
+
             // Databases
             builder.Services.AddDbContext<DataContext>();
-            
+
             // Repositories
             builder.Services.AddSingleton<SessionRepository>();
             builder.Services.AddScoped<UserRepository>();
@@ -76,7 +96,7 @@ namespace Moonlight
             builder.Services.AddScoped<ErrorLogEntryRepository>();
             builder.Services.AddScoped<SecurityLogEntryRepository>();
             builder.Services.AddScoped(typeof(Repository<>));
-            
+
             // Services
             builder.Services.AddSingleton<ConfigService>();
             builder.Services.AddSingleton<StorageService>();
@@ -98,7 +118,6 @@ namespace Moonlight
             builder.Services.AddScoped<OneTimeJwtService>();
             builder.Services.AddSingleton<NotificationServerService>();
             builder.Services.AddScoped<NotificationAdminService>();
-            builder.Services.AddScoped<NotificationClientService>();
             builder.Services.AddScoped<ModalService>();
             builder.Services.AddScoped<SmartDeployService>();
             builder.Services.AddScoped<WebSpaceService>();
@@ -108,9 +127,14 @@ namespace Moonlight
             builder.Services.AddScoped<FileDownloadService>();
             builder.Services.AddScoped<ForgeService>();
             builder.Services.AddScoped<FabricService>();
-            
-            builder.Services.AddScoped<GoogleOAuth2Service>();
-            builder.Services.AddScoped<DiscordOAuth2Service>();
+            builder.Services.AddSingleton<BucketService>();
+            builder.Services.AddScoped<RatingService>();
+            builder.Services.AddScoped<ReCaptchaService>();
+            builder.Services.AddScoped<IpBanService>();
+            builder.Services.AddSingleton<OAuth2Service>();
+            builder.Services.AddScoped<DynamicBackgroundService>();
+            builder.Services.AddScoped<ServerAddonPluginService>();
+            builder.Services.AddScoped<KeyListenerService>();
 
             builder.Services.AddScoped<SubscriptionService>();
             builder.Services.AddScoped<SubscriptionAdminService>();
@@ -138,12 +162,16 @@ namespace Moonlight
             builder.Services.AddSingleton<HostSystemHelper>();
             builder.Services.AddScoped<DaemonApiHelper>();
             builder.Services.AddScoped<CloudPanelApiHelper>();
-            
+            builder.Services.AddScoped<ModrinthApiHelper>();
+
             // Background services
             builder.Services.AddSingleton<DiscordBotService>();
             builder.Services.AddSingleton<StatisticsCaptureService>();
             builder.Services.AddSingleton<DiscordNotificationService>();
             builder.Services.AddSingleton<CleanupService>();
+            
+            // Other
+            builder.Services.AddSingleton<MoonlightService>();
 
             // Third party services
             builder.Services.AddBlazorTable();
@@ -166,9 +194,13 @@ namespace Moonlight
             app.UseWebSockets();
 
             app.MapControllers();
-            
+
             app.MapBlazorHub();
             app.MapFallbackToPage("/_Host");
+            app.MapHealthChecks("/_health", new()
+            {
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
 
             // AutoStart services
             _ = app.Services.GetRequiredService<CleanupService>();
@@ -176,10 +208,12 @@ namespace Moonlight
             _ = app.Services.GetRequiredService<StatisticsCaptureService>();
             _ = app.Services.GetRequiredService<DiscordNotificationService>();
             
+            _ = app.Services.GetRequiredService<MoonlightService>();
+
             // Discord bot service
             //var discordBotService = app.Services.GetRequiredService<DiscordBotService>();
 
-            app.Run();
+            await app.RunAsync();
         }
     }
 }

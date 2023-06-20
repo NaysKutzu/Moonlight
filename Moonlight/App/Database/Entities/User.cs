@@ -29,6 +29,8 @@ public class User
     public UserStatus Status { get; set; } = UserStatus.Unverified;
     public bool Admin { get; set; } = false;
     public bool SupportPending { get; set; } = false;
+    public bool HasRated { get; set; } = false;
+    public int Rating { get; set; } = 0;
     
     // Security
     public bool TotpEnabled { get; set; } = false;
@@ -41,6 +43,7 @@ public class User
     // Date stuff
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime LastVisitedAt { get; set; } = DateTime.UtcNow;
     
     // Subscriptions
 

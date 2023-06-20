@@ -8,6 +8,10 @@
       "Port": "10324",
       "Username": "user_name"
     },
+    "DiscordBotApi": {
+      "Enable": false,
+      "Token": "you api key here"
+    },
     "DiscordBot": {
       "Enable": false,
       "Token": "Discord.Token.Here",
@@ -34,25 +38,24 @@
       "Website": "https://mycoolproject.de/"
     },
     "OAuth2": {
-      "Discord": {
-        "ClientId": "10324",
-        "ClientSecret": "s3cr3t",
-        "Enable": "True"
-      },
-      "Google": {
-        "ClientId": "xyz.apps.googleusercontent.com",
-        "ClientSecret": "s3cr3t",
-        "Enable": "True"
-      },
-      "EnableOverrideUrl": "True",
+      "_exampleProviders": [
+        {
+          "Id": "discord",
+          "ClientId": "",
+          "ClientSecret": ""
+        },
+        {
+          "Id": "google",
+          "ClientId": "",
+          "ClientSecret": ""
+        }
+      ],
+      "Providers": [],
+      "EnableOverrideUrl": false,
       "OverrideUrl": "http://your-moonlight-url.test"
     },
     "Security": {
       "Token": "RANDOM UUID HERE"
-    },
-    "SetupComplete": "True",
-    "SupportChat": {
-      "Enabled": "True"
     },
     "Mail": {
       "Email": "no-reply@mycoolproject.de",
@@ -83,6 +86,12 @@
     "Statistics": {
       "Enabled": true,
       "Wait": 15
+    },
+    "Rating": {
+      "Enabled": true,
+      "Url": "link-to-google.page",
+      "MinRating": 4,
+      "DaysSince": 5
     }
   }
 }

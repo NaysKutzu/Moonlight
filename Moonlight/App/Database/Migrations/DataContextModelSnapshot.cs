@@ -132,6 +132,10 @@ namespace Moonlight.App.Database.Migrations
                     b.Property<int>("Allocations")
                         .HasColumnType("int");
 
+                    b.Property<string>("BackgroundImageUrl")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("ConfigFiles")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -202,6 +206,24 @@ namespace Moonlight.App.Database.Migrations
                     b.HasIndex("ImageId");
 
                     b.ToTable("ImageVariables");
+                });
+
+            modelBuilder.Entity("Moonlight.App.Database.Entities.IpBan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Ip")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("IpBans");
                 });
 
             modelBuilder.Entity("Moonlight.App.Database.Entities.LoadingMessage", b =>
@@ -474,6 +496,9 @@ namespace Moonlight.App.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+                    b.Property<int?>("ArchiveId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Cpu")
                         .HasColumnType("int");
 
@@ -487,6 +512,9 @@ namespace Moonlight.App.Database.Migrations
                         .HasColumnType("int");
 
                     b.Property<bool>("Installing")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsArchived")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsCleanupException")
@@ -519,6 +547,8 @@ namespace Moonlight.App.Database.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ArchiveId");
 
                     b.HasIndex("ImageId");
 
@@ -733,13 +763,22 @@ namespace Moonlight.App.Database.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("HasRated")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<DateTime>("LastVisitedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
 
                     b.Property<string>("State")
                         .IsRequired()
@@ -904,6 +943,10 @@ namespace Moonlight.App.Database.Migrations
 
             modelBuilder.Entity("Moonlight.App.Database.Entities.Server", b =>
                 {
+                    b.HasOne("Moonlight.App.Database.Entities.ServerBackup", "Archive")
+                        .WithMany()
+                        .HasForeignKey("ArchiveId");
+
                     b.HasOne("Moonlight.App.Database.Entities.Image", "Image")
                         .WithMany()
                         .HasForeignKey("ImageId")
@@ -925,6 +968,8 @@ namespace Moonlight.App.Database.Migrations
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Archive");
 
                     b.Navigation("Image");
 

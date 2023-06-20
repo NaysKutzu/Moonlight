@@ -2,6 +2,7 @@
 @using Moonlight.App.Extensions
 @using Moonlight.App.Repositories
 @using Moonlight.App.Services
+@using Moonlight.App.Services.Sessions
 @namespace Moonlight.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 
@@ -77,12 +78,21 @@
     <img alt="Logo" src="@(moonlightConfig.GetValue<string>("AppUrl"))/api/moonlight/resources/images/logo.svg" class="h-25px"/>
 
     @{
-        var loadingMessage = LoadingMessageRepository.Get().Random();
+        string loadingMessage;
+
+        try
+        {
+            loadingMessage = LoadingMessageRepository.Get().Random().Message;
+        }
+        catch (Exception)
+        {
+            loadingMessage = "";
+        }
     }
 
     <div class="d-flex align-items-center mt-5">
         <span class="spinner-border text-primary" role="status"></span>
-        <span class="text-muted fs-6 fw-semibold ms-5">@(loadingMessage.Message)</span>
+        <span class="text-muted fs-6 fw-semibold ms-5">@(loadingMessage)</span>
     </div>
 </div>
 
@@ -90,15 +100,12 @@
 <script src="/assets/plugins/global/plugins.bundle.js"></script>
 <script src="/_content/XtermBlazor/XtermBlazor.min.js"></script>
 <script src="/_content/BlazorTable/BlazorTable.min.js"></script>
-<script src="/_content/BlazorInputFile/inputfile.js"></script>
 <script src="/_content/CurrieTechnologies.Razor.SweetAlert2/sweetAlert2.min.js"></script>
 <script src="/_content/Blazor.ContextMenu/blazorContextMenu.min.js"></script>
 
 <script src="https://www.google.com/recaptcha/api.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.8.2/lib/xterm-addon-search.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.5.0/lib/xterm-addon-web-links.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
 
 <script src="/_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
 <script>require.config({ paths: { 'vs': '/_content/BlazorMonaco/lib/monaco-editor/min/vs' } });</script>
@@ -114,5 +121,6 @@ moonlight.loading.registerXterm();
 
 <script src="_content/Blazor-ApexCharts/js/apex-charts.min.js"></script>
 <script src="_content/Blazor-ApexCharts/js/blazor-apex-charts.js"></script>
+
 </body>
 </html>

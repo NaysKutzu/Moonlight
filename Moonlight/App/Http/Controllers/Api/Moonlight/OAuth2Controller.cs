@@ -1,11 +1,6 @@
 ﻿using Logging.Net;
 using Microsoft.AspNetCore.Mvc;
-using Moonlight.App.Exceptions;
-using Moonlight.App.Helpers;
-using Moonlight.App.Models.Misc;
-using Moonlight.App.Repositories;
 using Moonlight.App.Services;
-using Moonlight.App.Services.OAuth2;
 using Moonlight.App.Services.Sessions;
 
 namespace Moonlight.App.Http.Controllers.Api.Moonlight;
@@ -14,130 +9,78 @@ namespace Moonlight.App.Http.Controllers.Api.Moonlight;
 [Route("api/moonlight/oauth2")]
 public class OAuth2Controller : Controller
 {
-    private readonly GoogleOAuth2Service GoogleOAuth2Service;
-    private readonly DiscordOAuth2Service DiscordOAuth2Service;
-    private readonly UserRepository UserRepository;
     private readonly UserService UserService;
+    private readonly OAuth2Service OAuth2Service;
     private readonly DateTimeService DateTimeService;
+    private readonly IdentityService IdentityService;
 
     public OAuth2Controller(
-        GoogleOAuth2Service googleOAuth2Service, 
-        UserRepository userRepository, 
         UserService userService,
-        DiscordOAuth2Service discordOAuth2Service, DateTimeService dateTimeService)
+        OAuth2Service oAuth2Service,
+        DateTimeService dateTimeService,
+        IdentityService identityService)
     {
-        GoogleOAuth2Service = googleOAuth2Service;
-        UserRepository = userRepository;
         UserService = userService;
-        DiscordOAuth2Service = discordOAuth2Service;
+        OAuth2Service = oAuth2Service;
         DateTimeService = dateTimeService;
+        IdentityService = identityService;
     }
 
-    [HttpGet("google")]
-    public async Task<ActionResult> Google([FromQuery] string code)
+    [HttpGet("{id}/start")]
+    public async Task<ActionResult> Start([FromRoute] string id)
     {
         try
         {
-            var userData = await GoogleOAuth2Service.HandleCode(code);
-
-            if (userData == null)
-                return Redirect("/login");
-
-            try
+            if (OAuth2Service.Providers.ContainsKey(id))
             {
-                var user = UserRepository.Get().FirstOrDefault(x => x.Email == userData.Email);
-
-                string token;
-                
-                if (user == null)
-                {
-                    token = await UserService.Register(
-                        userData.Email,
-                        StringHelper.GenerateString(32),
-                        userData.FirstName,
-                        userData.LastName
-                    );
-                }
-                else
-                {
-                    token = await UserService.GenerateToken(user, true);
-                }
-                
-                Response.Cookies.Append("token", token, new ()
-                {
-                    Expires = new DateTimeOffset(DateTimeService.GetCurrent().AddDays(10))
-                });
-
-                return Redirect("/");
+                return Redirect(await OAuth2Service.GetUrl(id));
             }
-            catch (Exception e)
-            {
-                Logger.Warn(e.Message);
-                return Redirect("/login");
-            }
+            
+            Logger.Warn($"Someone tried to start an oauth2 flow using the id '{id}' which is not registered");
+
+            return Redirect("/");
         }
         catch (Exception e)
         {
-            Logger.Warn(e.Message);
-            return BadRequest();
+            Logger.Warn($"Error starting oauth2 flow for id: {id}");
+            Logger.Warn(e);
+            
+            return Redirect("/");
         }
     }
 
-    [HttpGet("discord")]
-    public async Task<ActionResult> Discord([FromQuery] string code)
+    [HttpGet("{id}")]
+    public async Task<ActionResult> Hande([FromRoute] string id, [FromQuery] string code)
     {
         try
         {
-            var userData = await DiscordOAuth2Service.HandleCode(code);
+            var currentUser = await IdentityService.Get();
 
-            if (userData == null)
-                return Redirect("/login");
-
-            try
+            if (currentUser != null)
             {
-                var user = UserRepository.Get().FirstOrDefault(x => x.Email == userData.Email);
-
-                string token;
-                
-                if (user == null)
+                if (await OAuth2Service.CanBeLinked(id))
                 {
-                    token = await UserService.Register(
-                        userData.Email,
-                        StringHelper.GenerateString(32),
-                        userData.FirstName,
-                        userData.LastName
-                    );
-
-                    var newUser = UserRepository
-                        .Get()
-                        .First(x => x.Email == userData.Email);
-
-                    newUser.Status = UserStatus.DataPending;
+                    await OAuth2Service.LinkToUser(id, currentUser, code);
                     
-                    UserRepository.Update(newUser);
+                    return Redirect("/profile");
                 }
-                else
-                {
-                    token = await UserService.GenerateToken(user, true);
-                }
-                
-                Response.Cookies.Append("token", token, new ()
-                {
-                    Expires = new DateTimeOffset(DateTimeService.GetCurrent().AddDays(10))
-                });
+            }
+            
+            var user = await OAuth2Service.HandleCode(id, code);
 
-                return Redirect("/");
-            }
-            catch (Exception e)
+            Response.Cookies.Append("token", await UserService.GenerateToken(user), new()
             {
-                Logger.Warn(e.Message);
-                return Redirect("/login");
-            }
+                Expires = new DateTimeOffset(DateTimeService.GetCurrent().AddDays(10))
+            });
+
+            return Redirect("/");
         }
         catch (Exception e)
         {
+            Logger.Warn("An unexpected error occured while handling oauth2");
             Logger.Warn(e.Message);
-            return BadRequest();
+
+            return Redirect("/login");
         }
     }
 }
