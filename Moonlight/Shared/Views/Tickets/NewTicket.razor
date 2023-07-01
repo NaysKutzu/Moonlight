@@ -310,7 +310,7 @@ if ((DateTime.UtcNow - LastTypingTimestamp).TotalSeconds > 5)
 
             await TicketServerService.CreateTicketMessage(User, Content, ticket, SmartFileSelect.SelectedFile);
             
-            NavigationManager.NavigateTo($"/ticket/view/{ticket.Id}");
+            NavigationManager.NavigateTo($"/tickets/{ticket.Id}");
         }
     }
 

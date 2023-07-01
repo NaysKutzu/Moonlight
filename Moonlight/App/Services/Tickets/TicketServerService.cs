@@ -88,27 +88,28 @@ public class TicketServerService
         var ticketRepo = scope.ServiceProvider.GetRequiredService<Repository<SupportTicket>>();
         var userRepo = scope.ServiceProvider.GetRequiredService<Repository<User>>();
         var u = userRepo.Get().First(x => x.Id == user.Id);
-        var u2 = userRepo.Get().First(x => x.Id == ticket.Owner.Id);
-        ticket.Owner = u2;
+        var supportTicket = ticketRepo.Get()
+            .Include(x => x.Owner)
+            .First(x => x.Id == ticket.Id);
 
         if (browserFile != null)
         {
             attachment = await BucketService.StoreFile(
                 "supportTicket",
                 browserFile.OpenReadStream(1024 * 1024 * 5),
-                Guid.NewGuid().ToString());
+                browserFile.Name);
         }
         
-        ticket.Messages.Add(new SupportTicketMessage
+        supportTicket.Messages.Add(new SupportTicketMessage
         {
             User = u,
             Message = content,
             Attachment = attachment ?? ""
         });
         
-        ticketRepo.Update(ticket);
+        ticketRepo.Update(supportTicket);
 
-        return ticket;
+        return supportTicket;
     }
     
 }

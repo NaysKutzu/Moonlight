@@ -78,6 +78,7 @@
     <Folder Include="App\Http\Middleware" />
     <Folder Include="storage\backups\" />
     <Folder Include="storage\resources\public\background\" />
+    <Folder Include="storage\uploads\supportTicket\" />
   </ItemGroup>
 
   <ItemGroup>
