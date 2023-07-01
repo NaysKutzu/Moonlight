@@ -375,8 +375,14 @@
 
     private async Task Send()
     {
-        await TicketServerService.CreateTicketMessage(User, Content, Ticket, SmartFileSelect.SelectedFile);
-        if (MessagesLazyLoader != null) await MessagesLazyLoader.Reload();
+        var newTicketMessage = await TicketServerService.CreateTicketMessage(User, Content, Ticket, SmartFileSelect.SelectedFile);
+        if (newTicketMessage != Ticket)
+        {
+            Content = "";
+            await InvokeAsync(StateHasChanged);
+            await SmartFileSelect.RemoveSelection();
+            if (MessagesLazyLoader != null) await MessagesLazyLoader.Reload();
+        }
     }
     
     
