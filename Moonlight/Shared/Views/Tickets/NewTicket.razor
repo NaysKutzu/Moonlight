@@ -275,24 +275,25 @@ else
 
 @code
 {
-[CascadingParameter]
-public User User { get; set; }
-
-private string Title;
-private string Content;
-private DateTime LastTypingTimestamp = DateTime.UtcNow.AddMinutes(-10);
-private SmartFileSelect SmartFileSelect;
-private SupportTicketType TicketType;
-private bool TicketLimit;
-
-private async Task Load(LazyLoader lazyLoader)
-{
-await lazyLoader.SetText(SmartTranslateService.Translate("Loading..."));
-TicketLimit = TicketServerService.CanOpenTicket(User);
-}
-private async void OnTyping()
-{
-if ((DateTime.UtcNow - LastTypingTimestamp).TotalSeconds > 5)
+    [CascadingParameter]
+    public User User { get; set; }
+    
+    private string Title;
+    private string Content;
+    private DateTime LastTypingTimestamp = DateTime.UtcNow.AddMinutes(-10);
+    private SmartFileSelect SmartFileSelect;
+    private SupportTicketType TicketType;
+    private bool TicketLimit;
+    
+    private async Task Load(LazyLoader lazyLoader)
+    {
+        await lazyLoader.SetText(SmartTranslateService.Translate("Loading..."));
+        TicketLimit = TicketServerService.CanOpenTicket(User);
+    }
+    
+    private async void OnTyping()
+    {
+        if ((DateTime.UtcNow - LastTypingTimestamp).TotalSeconds > 5)
         {
             LastTypingTimestamp = DateTime.UtcNow;
             //TODO: await ClientService.SendTyping();
