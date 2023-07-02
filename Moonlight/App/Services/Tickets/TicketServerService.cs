@@ -42,16 +42,24 @@ public class TicketServerService
         return false;
     }
     
-    public Task<List<SupportTicket>> GetOpenTickets(User user)
+    public Task<List<SupportTicket>> GetOpenTickets(User? user = null)
     {
         var result = new List<SupportTicket>();
 
         using var scope = ServiceScopeFactory.CreateScope();
         var ticketRepo = scope.ServiceProvider.GetRequiredService<Repository<SupportTicket>>();
         var userRepo = scope.ServiceProvider.GetRequiredService<Repository<User>>();
-        var u = userRepo.Get().First(x => x.Id == user.Id);
+        var u = user == null ? null : userRepo.Get().First(x => x.Id == user.Id);
 
-        result = ticketRepo.Get().Where(x => x.Owner.Id == u.Id).Include(x => x.Messages).ToList();
+        result = user == null ?
+            ticketRepo.Get()
+                .Include(x => x.Messages)
+                .Include(x => x.Owner).ToList()
+            :
+            ticketRepo.Get()
+                .Where(x => x.Owner.Id == u.Id)
+                .Include(x => x.Messages)
+                .Include(x => x.Owner).ToList();
 
         return Task.FromResult(result);
     }
